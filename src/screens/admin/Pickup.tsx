@@ -142,9 +142,9 @@ export function Pickup() {
           ) : (
             <button
               onClick={handleDeliver}
-              className="flex h-[68px] w-full cursor-pointer items-center justify-center gap-3 rounded-md border-none bg-gradient-to-br from-lime to-lime-dark font-display text-lg font-bold text-bg-deep shadow-[0_16px_34px_-10px_rgba(198,255,77,0.5)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+              className="flex h-[68px] w-full cursor-pointer items-center justify-center gap-3 rounded-md border-none bg-gradient-to-br from-lime to-lime-dark font-display text-lg font-bold uppercase tracking-wide text-bg-deep shadow-[0_16px_34px_-10px_rgba(198,255,77,0.5)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
             >
-              Entregar Pedido
+              Entregar pedido
             </button>
           )}
         </div>
