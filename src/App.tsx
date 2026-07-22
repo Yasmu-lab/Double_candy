@@ -23,6 +23,7 @@ import { Profile } from './screens/Profile';
 import { ProductDetail } from './screens/ProductDetail';
 import { Splash } from './screens/Splash';
 import { useAuthStore } from './store/authStore';
+import { useNotificationStore } from './store/notificationStore';
 
 function AuthLoading() {
   return (
@@ -52,10 +53,19 @@ function RequireAdmin({ children }: { children: ReactNode }) {
 
 function App() {
   const init = useAuthStore((s) => s.init);
+  const authStatus = useAuthStore((s) => s.status);
+  const fetchNotifications = useNotificationStore((s) => s.fetch);
 
   useEffect(() => {
     init();
   }, [init]);
+
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return;
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
+  }, [authStatus, fetchNotifications]);
 
   return (
     <div className="relative">

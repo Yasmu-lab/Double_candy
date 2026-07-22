@@ -50,6 +50,59 @@ async function customerDto(row: any) {
   return { id: row.id, name: row.name, phone: row.phone, photoUrl: row.photo_url, isAdmin };
 }
 
+function formatCents(cents: number): string {
+  return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+}
+
+type NotificationType =
+  | 'order_received'
+  | 'order_confirmed'
+  | 'order_delivered'
+  | 'order_cancelled'
+  | 'new_order'
+  | 'out_of_stock'
+  | 'low_stock'
+  | 'new_customer'
+  | 'new_product';
+
+// Single insertion point for every notification in the app. Centralizing here means a future
+// push-notification provider (web push / FCM) only needs to be wired in once, right after the
+// DB insert below — every call site below stays unchanged.
+async function notify(
+  userIds: string[],
+  input: { title: string; message: string; type: NotificationType; link?: string; relatedId?: string },
+) {
+  if (userIds.length === 0) return;
+  const rows = userIds.map((userId) => ({
+    store_id: STORE_ID,
+    user_id: userId,
+    title: input.title,
+    message: input.message,
+    type: input.type,
+    link: input.link ?? null,
+    related_id: input.relatedId ?? null,
+  }));
+  const { error } = await sb().from('notifications').insert(rows);
+  if (error) console.error('notify failed', error);
+  // TODO(push): once a push provider is configured, send here too, keyed off userIds.
+}
+
+// Resolves the auth_user_id of every store admin, so an event can notify all of them at once.
+async function adminUserIds(excludeUserId?: string): Promise<string[]> {
+  const client = sb();
+  const { data: admins } = await client.from('store_admins').select('phone').eq('store_id', STORE_ID);
+  const phones = (admins ?? []).map((a) => a.phone);
+  if (!phones.length) return [];
+  const { data: customers } = await client
+    .from('customers')
+    .select('auth_user_id')
+    .eq('store_id', STORE_ID)
+    .in('phone', phones);
+  return (customers ?? [])
+    .map((cst) => cst.auth_user_id as string | null)
+    .filter((id): id is string => !!id && id !== excludeUserId);
+}
+
 // Requires a real logged-in customer (not just the anon key). Returns the response to send
 // straight back if unauthorized/not-yet-linked, or { userId, customerId, customer } on success.
 async function requireCustomer(c: any) {
@@ -229,6 +282,16 @@ app.post('/me/bootstrap', async (c) => {
     .select()
     .single();
   if (error) return err(c, error);
+
+  const adminIds = await adminUserIds(user.id);
+  await notify(adminIds, {
+    type: 'new_customer',
+    title: 'Novo cliente',
+    message: `${created.name} acabou de se cadastrar.`,
+    link: '/admin/clients',
+    relatedId: created.id,
+  });
+
   return c.json(await customerDto(created), 201);
 });
 
@@ -274,6 +337,57 @@ app.post('/me/photo', async (c) => {
   if (updErr) return err(c, updErr);
 
   return c.json({ photoUrl: pub.publicUrl });
+});
+
+// ---- notifications ----
+app.get('/notifications', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const { data, error } = await sb()
+    .from('notifications')
+    .select('*')
+    .eq('user_id', auth.userId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) return err(c, error);
+  return c.json(
+    data.map((n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      type: n.type,
+      link: n.link,
+      relatedId: n.related_id,
+      isRead: n.is_read,
+      createdAt: n.created_at,
+    })),
+  );
+});
+
+app.patch('/notifications/:id/read', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const id = c.req.param('id');
+  const { error } = await sb().from('notifications').update({ is_read: true }).eq('id', id).eq('user_id', auth.userId);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
+app.post('/notifications/read-all', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const { error } = await sb().from('notifications').update({ is_read: true }).eq('user_id', auth.userId).eq('is_read', false);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
+app.delete('/notifications/:id', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const id = c.req.param('id');
+  const { error } = await sb().from('notifications').delete().eq('id', id).eq('user_id', auth.userId);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
 });
 
 // ---- password reset requests ----
@@ -494,6 +608,16 @@ app.post('/products', async (c) => {
     .from('product_stock')
     .insert({ product_id: product.id, quantity_available: body.stock ?? 0 });
   if (stockError) return err(c, stockError);
+
+  const adminIds = await adminUserIds(auth.userId);
+  await notify(adminIds, {
+    type: 'new_product',
+    title: 'Novo produto',
+    message: `${product.name} foi adicionado ao cardápio.`,
+    link: '/admin/products',
+    relatedId: product.id,
+  });
+
   return c.json({ id: product.id }, 201);
 });
 
@@ -619,7 +743,25 @@ app.post('/orders', async (c) => {
   }
   const { data: full, error: fetchErr } = await client.from('orders').select(ORDER_SELECT).eq('id', row.order_id).single();
   if (fetchErr) return err(c, fetchErr);
-  return c.json(mapOrder(full), 201);
+  const orderDto = mapOrder(full);
+
+  await notify([auth.userId], {
+    type: 'order_received',
+    title: 'Pedido recebido',
+    message: `Recebemos seu pedido ${orderDto.displayId}!`,
+    link: '/history',
+    relatedId: orderDto.id,
+  });
+  const adminIds = await adminUserIds(auth.userId);
+  await notify(adminIds, {
+    type: 'new_order',
+    title: 'Novo pedido',
+    message: `${auth.customer.name} fez um pedido de ${formatCents(orderDto.totalCents)}.`,
+    link: '/admin/orders',
+    relatedId: orderDto.id,
+  });
+
+  return c.json(orderDto, 201);
 });
 
 // Admins can set any status. A regular customer may only cancel their own order.
@@ -632,11 +774,22 @@ app.patch('/orders/:id/status', async (c) => {
   if (auth instanceof Response) return auth;
   const admin = await isAdminPhone(auth.customer.phone);
 
+  const { data: order, error: orderErr } = await client
+    .from('orders')
+    .select('id,order_number,customer_id,customers(auth_user_id,name)')
+    .eq('id', id)
+    .eq('store_id', STORE_ID)
+    .maybeSingle();
+  if (orderErr) return err(c, orderErr);
+  if (!order) return c.json({ error: 'NOT_FOUND' }, 404);
+
   if (!admin) {
     if (body.status !== 'cancelled') return c.json({ error: 'FORBIDDEN' }, 403);
-    const { data: order } = await client.from('orders').select('customer_id').eq('id', id).eq('store_id', STORE_ID).maybeSingle();
-    if (!order || order.customer_id !== auth.customerId) return c.json({ error: 'FORBIDDEN' }, 403);
+    if (order.customer_id !== auth.customerId) return c.json({ error: 'FORBIDDEN' }, 403);
   }
+
+  const displayId = `#DC-${order.order_number}`;
+  const orderCustomer = one<{ auth_user_id: string | null; name: string }>(order.customers);
 
   if (body.status === 'cancelled') {
     const { error } = await client.rpc('cancel_order', {
@@ -645,6 +798,27 @@ app.patch('/orders/:id/status', async (c) => {
       p_reason: body.reason ?? null,
     });
     if (error) return err(c, error, 409);
+
+    if (admin) {
+      if (orderCustomer?.auth_user_id) {
+        await notify([orderCustomer.auth_user_id], {
+          type: 'order_cancelled',
+          title: 'Pedido cancelado',
+          message: `Seu pedido ${displayId} foi cancelado.`,
+          link: '/history',
+          relatedId: id,
+        });
+      }
+    } else {
+      const adminIds = await adminUserIds();
+      await notify(adminIds, {
+        type: 'order_cancelled',
+        title: 'Pedido cancelado',
+        message: `${auth.customer.name} cancelou o pedido ${displayId}.`,
+        link: '/admin/orders',
+        relatedId: id,
+      });
+    }
     return c.json({ ok: true });
   }
   if (!admin) return c.json({ error: 'FORBIDDEN' }, 403);
@@ -653,6 +827,24 @@ app.patch('/orders/:id/status', async (c) => {
   }
   const { error } = await client.from('orders').update({ status: body.status }).eq('id', id).eq('store_id', STORE_ID);
   if (error) return err(c, error);
+
+  if (orderCustomer?.auth_user_id && body.status === 'confirmed') {
+    await notify([orderCustomer.auth_user_id], {
+      type: 'order_confirmed',
+      title: 'Pedido confirmado',
+      message: `Seu pedido ${displayId} foi confirmado!`,
+      link: '/history',
+      relatedId: id,
+    });
+  } else if (orderCustomer?.auth_user_id && body.status === 'delivered') {
+    await notify([orderCustomer.auth_user_id], {
+      type: 'order_delivered',
+      title: 'Pedido entregue',
+      message: `Seu pedido ${displayId} foi entregue. Bom apetite!`,
+      link: '/history',
+      relatedId: id,
+    });
+  }
   return c.json({ ok: true });
 });
 
