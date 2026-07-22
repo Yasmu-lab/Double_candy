@@ -40,6 +40,15 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const status = useAuthStore((s) => s.status);
+  const isAdmin = useAuthStore((s) => s.customer?.isAdmin ?? false);
+  if (status === 'loading') return <AuthLoading />;
+  if (status === 'unauthenticated') return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/home" replace />;
+  return <>{children}</>;
+}
+
 function App() {
   const init = useAuthStore((s) => s.init);
 
@@ -96,9 +105,9 @@ function App() {
         <Route
           path="/admin"
           element={
-            <RequireAuth>
+            <RequireAdmin>
               <AdminLayout />
-            </RequireAuth>
+            </RequireAdmin>
           }
         >
           <Route index element={<Navigate to="dashboard" replace />} />

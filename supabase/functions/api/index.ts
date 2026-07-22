@@ -34,8 +34,20 @@ async function getAuthUser(c: any) {
   return data.user;
 }
 
-function mapCustomer(row: any) {
-  return { id: row.id, name: row.name, phone: row.phone, photoUrl: row.photo_url };
+// Phone is the identity key matched against store_admins and legacy customer rows, so it must
+// be stored consistently regardless of how the client formats it (parens, dashes, spaces).
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+async function isAdminPhone(phone: string): Promise<boolean> {
+  const { data } = await sb().from('store_admins').select('id').eq('store_id', STORE_ID).eq('phone', phone).maybeSingle();
+  return !!data;
+}
+
+async function customerDto(row: any) {
+  const isAdmin = await isAdminPhone(row.phone);
+  return { id: row.id, name: row.name, phone: row.phone, photoUrl: row.photo_url, isAdmin };
 }
 
 // Requires a real logged-in customer (not just the anon key). Returns the response to send
@@ -52,6 +64,17 @@ async function requireCustomer(c: any) {
   if (error) return err(c, error);
   if (!customer) return c.json({ error: 'CUSTOMER_NOT_LINKED' }, 404);
   return { userId: user.id, customerId: customer.id, customer };
+}
+
+// Requires the caller to be one of the store's admins (store_admins.phone match), on top of
+// being a real logged-in customer. This is the only real authorization boundary for the admin
+// panel — the anon key alone is no longer enough for any of the routes below.
+async function requireAdmin(c: any) {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const admin = await isAdminPhone(auth.customer.phone);
+  if (!admin) return c.json({ error: 'FORBIDDEN' }, 403);
+  return auth;
 }
 
 // ---- time helpers (fixed -03:00 offset) ----
@@ -144,6 +167,8 @@ app.get('/store', async (c) => {
 });
 
 app.put('/store', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const body = await c.req.json();
   const patch: Record<string, unknown> = {};
   if (body.name !== undefined) patch.name = body.name;
@@ -167,6 +192,7 @@ app.post('/me/bootstrap', async (c) => {
   if (typeof body.name !== 'string' || !body.name.trim() || typeof body.phone !== 'string' || !body.phone.trim()) {
     return c.json({ error: 'INVALID_INPUT' }, 400);
   }
+  const phone = normalizePhone(body.phone);
   const client = sb();
 
   const { data: existing, error: existingErr } = await client
@@ -175,13 +201,13 @@ app.post('/me/bootstrap', async (c) => {
     .eq('auth_user_id', user.id)
     .maybeSingle();
   if (existingErr) return err(c, existingErr);
-  if (existing) return c.json(mapCustomer(existing));
+  if (existing) return c.json(await customerDto(existing));
 
   const { data: legacy, error: legacyErr } = await client
     .from('customers')
     .select('*')
     .eq('store_id', STORE_ID)
-    .eq('phone', body.phone.trim())
+    .eq('phone', phone)
     .is('auth_user_id', null)
     .maybeSingle();
   if (legacyErr) return err(c, legacyErr);
@@ -194,22 +220,22 @@ app.post('/me/bootstrap', async (c) => {
       .select()
       .single();
     if (error) return err(c, error);
-    return c.json(mapCustomer(updated));
+    return c.json(await customerDto(updated));
   }
 
   const { data: created, error } = await client
     .from('customers')
-    .insert({ store_id: STORE_ID, auth_user_id: user.id, name: body.name.trim(), phone: body.phone.trim() })
+    .insert({ store_id: STORE_ID, auth_user_id: user.id, name: body.name.trim(), phone })
     .select()
     .single();
   if (error) return err(c, error);
-  return c.json(mapCustomer(created), 201);
+  return c.json(await customerDto(created), 201);
 });
 
 app.get('/me', async (c) => {
   const auth = await requireCustomer(c);
   if (auth instanceof Response) return auth;
-  return c.json(mapCustomer(auth.customer));
+  return c.json(await customerDto(auth.customer));
 });
 
 app.put('/me', async (c) => {
@@ -218,14 +244,14 @@ app.put('/me', async (c) => {
   const body = await c.req.json();
   const patch: Record<string, unknown> = {};
   if (body.name !== undefined) patch.name = body.name;
-  if (body.phone !== undefined) patch.phone = body.phone;
-  if (!Object.keys(patch).length) return c.json(mapCustomer(auth.customer));
+  if (body.phone !== undefined) patch.phone = normalizePhone(body.phone);
+  if (!Object.keys(patch).length) return c.json(await customerDto(auth.customer));
   const { data, error } = await sb().from('customers').update(patch).eq('id', auth.customerId).select().single();
   if (error) {
     if (error.code === '23505') return c.json({ error: 'PHONE_IN_USE' }, 409);
     return err(c, error);
   }
-  return c.json(mapCustomer(data));
+  return c.json(await customerDto(data));
 });
 
 app.post('/me/photo', async (c) => {
@@ -262,6 +288,8 @@ app.get('/categories', async (c) => {
 });
 
 app.post('/categories', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const body = await c.req.json();
   if (typeof body.name !== 'string' || !body.name.trim()) {
     return c.json({ error: 'INVALID_INPUT' }, 400);
@@ -284,6 +312,8 @@ app.post('/categories', async (c) => {
 });
 
 app.put('/categories/:id', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const body = await c.req.json();
   const patch: Record<string, unknown> = {};
@@ -296,6 +326,8 @@ app.put('/categories/:id', async (c) => {
 });
 
 app.delete('/categories/:id', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const { error } = await sb().from('categories').delete().eq('id', id).eq('store_id', STORE_ID);
   if (error) {
@@ -333,6 +365,8 @@ app.get('/products', async (c) => {
 });
 
 app.post('/products', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const body = await c.req.json();
   const client = sb();
   const { data: product, error } = await client
@@ -356,6 +390,8 @@ app.post('/products', async (c) => {
 });
 
 app.put('/products/:id', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const body = await c.req.json();
   const client = sb();
@@ -380,6 +416,8 @@ app.put('/products/:id', async (c) => {
 });
 
 app.post('/products/:id/image', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const client = sb();
   const { data: product } = await client.from('products').select('id').eq('id', id).eq('store_id', STORE_ID).maybeSingle();
@@ -404,6 +442,8 @@ app.post('/products/:id/image', async (c) => {
 });
 
 app.delete('/products/:id', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const client = sb();
   const { error } = await client.from('products').delete().eq('id', id).eq('store_id', STORE_ID);
@@ -418,9 +458,10 @@ app.delete('/products/:id', async (c) => {
 
 // ---- orders ----
 
-// Admin view: every order for the store. Still gated only by the shared anon key today —
-// there is no real admin-role separation yet (tracked as a follow-up, not part of this change).
+// Admin view: every order for the store.
 app.get('/orders', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const { data, error } = await sb()
     .from('orders')
     .select(ORDER_SELECT)
@@ -473,19 +514,32 @@ app.post('/orders', async (c) => {
   return c.json(mapOrder(full), 201);
 });
 
+// Admins can set any status. A regular customer may only cancel their own order.
 app.patch('/orders/:id/status', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
   const client = sb();
+
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const admin = await isAdminPhone(auth.customer.phone);
+
+  if (!admin) {
+    if (body.status !== 'cancelled') return c.json({ error: 'FORBIDDEN' }, 403);
+    const { data: order } = await client.from('orders').select('customer_id').eq('id', id).eq('store_id', STORE_ID).maybeSingle();
+    if (!order || order.customer_id !== auth.customerId) return c.json({ error: 'FORBIDDEN' }, 403);
+  }
+
   if (body.status === 'cancelled') {
     const { error } = await client.rpc('cancel_order', {
       p_order_id: id,
-      p_cancelled_by: body.cancelledBy ?? 'admin',
+      p_cancelled_by: admin ? (body.cancelledBy ?? 'admin') : 'client',
       p_reason: body.reason ?? null,
     });
     if (error) return err(c, error, 409);
     return c.json({ ok: true });
   }
+  if (!admin) return c.json({ error: 'FORBIDDEN' }, 403);
   if (!['pending', 'confirmed', 'delivered', 'no_show'].includes(body.status)) {
     return c.json({ error: 'INVALID_STATUS' }, 400);
   }
@@ -496,6 +550,8 @@ app.patch('/orders/:id/status', async (c) => {
 
 // ---- pickup search ----
 app.get('/pickup', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const q = (c.req.query('q') ?? '').trim().toLowerCase();
   const qDigits = q.replace(/\D/g, '');
   const { data, error } = await sb()
@@ -519,6 +575,8 @@ app.get('/pickup', async (c) => {
 
 // ---- clients ----
 app.get('/clients', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const client = sb();
   const [{ data: customers, error: ce }, { data: orders, error: oe }] = await Promise.all([
     client.from('customers').select('id,name,phone').eq('store_id', STORE_ID),
@@ -554,6 +612,8 @@ app.get('/clients', async (c) => {
 
 // ---- prepare tomorrow ----
 app.get('/prepare', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const { data: orders, error } = await sb()
     .from('orders')
     .select('id,order_items(product_id,product_name_snapshot,quantity,unit_price_cents)')
@@ -583,6 +643,8 @@ app.get('/prepare', async (c) => {
 
 // ---- dashboard ----
 app.get('/dashboard', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const client = sb();
   const [{ data: products, error: pe }, { data: stock, error: se }, { data: orders, error: oe }] = await Promise.all([
     client.from('products').select('id,name').eq('store_id', STORE_ID),
@@ -721,6 +783,8 @@ app.get('/dashboard', async (c) => {
 
 // ---- reports ----
 app.get('/reports', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
   const { data: orders, error } = await sb().from('orders').select(ORDER_SELECT).eq('store_id', STORE_ID);
   if (error) return err(c, error);
   const notCancelled = (o: any) => o.status !== 'cancelled';
