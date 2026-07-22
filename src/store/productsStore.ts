@@ -16,7 +16,7 @@ interface ProductsState {
   error: string | null;
   fetched: boolean;
   fetchProducts: (opts?: { force?: boolean }) => Promise<void>;
-  addProduct: (input: NewProductInput) => Promise<void>;
+  addProduct: (input: NewProductInput) => Promise<string>;
   updateProduct: (id: string, input: Partial<NewProductInput>) => Promise<void>;
   removeProduct: (id: string) => Promise<void>;
 }
@@ -37,8 +37,9 @@ export const useProductsStore = create<ProductsState>()((set, get) => ({
     }
   },
   addProduct: async (input) => {
-    await api.createProduct(input);
+    const { id } = await api.createProduct(input);
     await get().fetchProducts({ force: true });
+    return id;
   },
   updateProduct: async (id, input) => {
     await api.updateProduct(id, input);

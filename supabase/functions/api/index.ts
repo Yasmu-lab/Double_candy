@@ -252,6 +252,33 @@ app.put('/products/:id', async (c) => {
   return c.json({ ok: true });
 });
 
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+app.post('/products/:id/image', async (c) => {
+  const id = c.req.param('id');
+  const client = sb();
+  const { data: product } = await client.from('products').select('id').eq('id', id).eq('store_id', STORE_ID).maybeSingle();
+  if (!product) return c.json({ error: 'NOT_FOUND' }, 404);
+
+  const body = await c.req.parseBody();
+  const file = body.file;
+  if (!(file instanceof File)) return c.json({ error: 'INVALID_INPUT' }, 400);
+  if (!IMAGE_MIME_TYPES.has(file.type)) return c.json({ error: 'INVALID_FILE_TYPE' }, 400);
+  if (file.size > MAX_IMAGE_BYTES) return c.json({ error: 'FILE_TOO_LARGE' }, 400);
+
+  const ext = file.type.split('/')[1];
+  const path = `${STORE_ID}/${id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await client.storage.from('product-images').upload(path, file, { contentType: file.type, upsert: true });
+  if (upErr) return err(c, upErr);
+
+  const { data: pub } = client.storage.from('product-images').getPublicUrl(path);
+  const { error: updErr } = await client.from('products').update({ image_url: pub.publicUrl }).eq('id', id).eq('store_id', STORE_ID);
+  if (updErr) return err(c, updErr);
+
+  return c.json({ imageUrl: pub.publicUrl });
+});
+
 app.delete('/products/:id', async (c) => {
   const id = c.req.param('id');
   const client = sb();
