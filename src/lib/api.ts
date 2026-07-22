@@ -12,12 +12,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
       apikey: ANON_KEY,
       Authorization: `Bearer ${ANON_KEY}`,
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init?.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...init?.headers,
     },
   });
@@ -69,6 +70,12 @@ export const api = {
   ) => request<{ ok: true }>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
 
   deleteProduct: (id: string) => request<{ ok: true; softDeleted: boolean }>(`/products/${id}`, { method: 'DELETE' }),
+
+  uploadProductImage: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<{ imageUrl: string }>(`/products/${id}/image`, { method: 'POST', body: form });
+  },
 
   getOrders: (phone?: string) => request<OrderDto[]>(`/orders${phone ? `?phone=${encodeURIComponent(phone)}` : ''}`),
 
