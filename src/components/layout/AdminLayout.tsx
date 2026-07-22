@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   LayoutDashboard,
   LayoutGrid,
+  LogOut,
   Package,
   Search,
   Settings,
@@ -16,6 +17,7 @@ import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { useAdminStore } from '../../store/adminStore';
+import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
 import { useProductsStore } from '../../store/productsStore';
 
@@ -56,6 +58,12 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
   const fetchProducts = useProductsStore((s) => s.fetchProducts);
   const openProdModal = useAdminStore((s) => s.openProdModal);
   const setOpenOrderId = useAdminStore((s) => s.setOpenOrderId);
+  const logout = useAuthStore((s) => s.logout);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const pendingOrders = useMemo(() => orders.filter((o) => o.status === 'pending'), [orders]);
   const lowStockProducts = useMemo(
@@ -165,10 +173,17 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
               <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-card-2">
                 <Users size={18} strokeWidth={2} className="text-lime" />
               </div>
-              <div>
-                <div className="text-[13px] font-bold">Ana (você)</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-bold">Ana (você)</div>
                 <div className="text-[11px] text-text-2">Administradora</div>
               </div>
+              <button
+                onClick={handleLogout}
+                title="Sair"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 text-text-2 transition-colors hover:bg-red/20 hover:text-red"
+              >
+                <LogOut size={15} strokeWidth={2} />
+              </button>
             </div>
           </div>
         </aside>

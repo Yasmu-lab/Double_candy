@@ -1,4 +1,4 @@
-import { Bell, Plus, Search, ShoppingBag, SlidersHorizontal, Star } from 'lucide-react';
+import { Bell, LogOut, Plus, Search, ShoppingBag, SlidersHorizontal, Star } from 'lucide-react';
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
@@ -24,10 +24,18 @@ function greetingForNow() {
 export function Home() {
   const navigate = useNavigate();
   const name = useAuthStore((s) => s.name);
+  const phone = useAuthStore((s) => s.phone);
+  const logout = useAuthStore((s) => s.logout);
   const cartCount = useCartCount();
   const addItem = useCartStore((s) => s.addItem);
   const openCart = useUiStore((s) => s.openCart);
   const showToast = useUiStore((s) => s.showToast);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const products = useProductsStore((s) => s.products);
   const productsLoading = useProductsStore((s) => s.loading);
@@ -66,11 +74,36 @@ export function Home() {
       <div className="lg:mx-auto lg:max-w-[1180px]">
         {/* header */}
         <header className="flex items-center gap-5">
-          <div className="shrink-0">
-            <div className="text-[13.5px] text-text-2">{greeting}</div>
-            <div className="font-display text-[23px] font-bold tracking-[-0.4px] lg:text-2xl">
-              E aí, {firstName(name) || 'visitante'}
-            </div>
+          <div
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setAccountMenuOpen(false);
+            }}
+            className="relative shrink-0"
+          >
+            <button
+              onClick={() => setAccountMenuOpen((v) => !v)}
+              className="cursor-pointer text-left"
+            >
+              <div className="text-[13.5px] text-text-2">{greeting}</div>
+              <div className="font-display text-[23px] font-bold tracking-[-0.4px] lg:text-2xl">
+                E aí, {firstName(name) || 'visitante'}
+              </div>
+            </button>
+            {accountMenuOpen && (
+              <div className="absolute left-0 top-full z-30 mt-2 w-56 rounded-md border border-white/[0.08] bg-surface p-2 shadow-[0_24px_50px_-16px_rgba(0,0,0,0.6)]">
+                <div className="mb-1 border-b border-white/[0.06] px-2.5 py-2">
+                  <div className="text-sm font-bold">{name || 'Visitante'}</div>
+                  <div className="text-xs text-text-2">{phone}</div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-red transition-colors hover:bg-red/10"
+                >
+                  <LogOut size={16} strokeWidth={2} />
+                  Sair
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mx-auto hidden h-[54px] max-w-[520px] flex-1 items-center gap-3 rounded-md border border-white/[0.06] bg-surface px-[18px] lg:flex">
