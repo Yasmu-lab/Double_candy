@@ -114,16 +114,18 @@ export function Home() {
                   <User size={16} strokeWidth={2} />
                   Meu Perfil
                 </button>
-                <button
-                  onClick={() => {
-                    setAccountMenuOpen(false);
-                    navigate('/admin/dashboard');
-                  }}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-text transition-colors hover:bg-card-2"
-                >
-                  <LayoutDashboard size={16} strokeWidth={2} />
-                  Painel admin
-                </button>
+                {customer?.isAdmin && (
+                  <button
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      navigate('/admin/dashboard');
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-text transition-colors hover:bg-card-2"
+                  >
+                    <LayoutDashboard size={16} strokeWidth={2} />
+                    Painel admin
+                  </button>
+                )}
                 <button
                   onClick={handleLogout}
                   className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-red transition-colors hover:bg-red/10"

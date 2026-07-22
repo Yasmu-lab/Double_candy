@@ -161,6 +161,7 @@ export interface CustomerDto {
   name: string;
   phone: string;
   photoUrl: string | null;
+  isAdmin: boolean;
 }
 
 export interface OrderDto {
