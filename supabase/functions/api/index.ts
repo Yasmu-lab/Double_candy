@@ -57,13 +57,32 @@ function formatCents(cents: number): string {
 type NotificationType =
   | 'order_received'
   | 'order_confirmed'
+  | 'order_preparing'
+  | 'order_separated'
+  | 'order_ready'
   | 'order_delivered'
+  | 'order_no_show'
   | 'order_cancelled'
   | 'new_order'
   | 'out_of_stock'
   | 'low_stock'
   | 'new_customer'
   | 'new_product';
+
+type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'separated' | 'ready_for_pickup' | 'delivered' | 'no_show' | 'cancelled';
+
+// Content for the customer-facing notification fired on each admin-driven status change.
+// 'pending'/'cancelled' aren't here on purpose: 'pending' is covered by the order_received
+// notification at creation time, and 'cancelled' has its own branch (admin-cancel vs
+// client-cancel need different copy — see PATCH /orders/:id/status).
+const STATUS_NOTIFY: Partial<Record<OrderStatus, { type: NotificationType; title: string; message: (displayId: string) => string }>> = {
+  confirmed: { type: 'order_confirmed', title: 'Pedido confirmado', message: (id) => `Seu pedido ${id} foi confirmado!` },
+  preparing: { type: 'order_preparing', title: 'Pedido em preparo', message: (id) => `Seu pedido ${id} está sendo preparado.` },
+  separated: { type: 'order_separated', title: 'Pedido separado', message: (id) => `Seu pedido ${id} foi separado e já vai pra embalagem.` },
+  ready_for_pickup: { type: 'order_ready', title: 'Pronto para retirada', message: (id) => `Seu pedido ${id} está pronto para retirada!` },
+  delivered: { type: 'order_delivered', title: 'Pedido entregue', message: (id) => `Seu pedido ${id} foi entregue. Bom apetite!` },
+  no_show: { type: 'order_no_show', title: 'Pedido não retirado', message: (id) => `Seu pedido ${id} foi marcado como não retirado.` },
+};
 
 // Single insertion point for every notification in the app. Centralizing here means a future
 // push-notification provider (web push / FCM) only needs to be wired in once, right after the
@@ -101,6 +120,29 @@ async function adminUserIds(excludeUserId?: string): Promise<string[]> {
   return (customers ?? [])
     .map((cst) => cst.auth_user_id as string | null)
     .filter((id): id is string => !!id && id !== excludeUserId);
+}
+
+// Single insertion point for order status changes — every transition (including the implicit
+// "Recebido" at creation) is recorded here so every order has a full audit trail: who changed
+// it, and when (created_at doubles as date + time).
+async function recordStatusChange(input: {
+  orderId: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  actorType: 'customer' | 'admin';
+  actorId: string;
+  actorName: string;
+}) {
+  const { error } = await sb().from('order_status_history').insert({
+    store_id: STORE_ID,
+    order_id: input.orderId,
+    from_status: input.fromStatus,
+    to_status: input.toStatus,
+    changed_by_type: input.actorType,
+    changed_by_id: input.actorId,
+    changed_by_name: input.actorName,
+  });
+  if (error) console.error('recordStatusChange failed', error);
 }
 
 // Requires a real logged-in customer (not just the anon key). Returns the response to send
@@ -831,6 +873,15 @@ app.post('/orders', async (c) => {
   if (fetchErr) return err(c, fetchErr);
   const orderDto = mapOrder(full);
 
+  await recordStatusChange({
+    orderId: orderDto.id,
+    fromStatus: null,
+    toStatus: 'pending',
+    actorType: 'customer',
+    actorId: auth.customerId,
+    actorName: auth.customer.name,
+  });
+
   await notify([auth.userId], {
     type: 'order_received',
     title: 'Pedido recebido',
@@ -850,7 +901,18 @@ app.post('/orders', async (c) => {
   return c.json(orderDto, 201);
 });
 
-// Admins can set any status. A regular customer may only cancel their own order.
+const ADMIN_SETTABLE_STATUSES: OrderStatus[] = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'separated',
+  'ready_for_pickup',
+  'delivered',
+  'no_show',
+];
+
+// Admins can advance the order through the full lifecycle. A regular customer may only cancel
+// their own order (and only while it's still pending/confirmed — cancel_order() enforces that).
 app.patch('/orders/:id/status', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
@@ -862,7 +924,7 @@ app.patch('/orders/:id/status', async (c) => {
 
   const { data: order, error: orderErr } = await client
     .from('orders')
-    .select('id,order_number,customer_id,customers(auth_user_id,name)')
+    .select('id,order_number,status,customer_id,customers(auth_user_id,name)')
     .eq('id', id)
     .eq('store_id', STORE_ID)
     .maybeSingle();
@@ -875,6 +937,7 @@ app.patch('/orders/:id/status', async (c) => {
   }
 
   const displayId = `#DC-${order.order_number}`;
+  const fromStatus = order.status as OrderStatus;
   const orderCustomer = one<{ auth_user_id: string | null; name: string }>(order.customers);
 
   if (body.status === 'cancelled') {
@@ -884,6 +947,15 @@ app.patch('/orders/:id/status', async (c) => {
       p_reason: body.reason ?? null,
     });
     if (error) return err(c, error, 409);
+
+    await recordStatusChange({
+      orderId: id,
+      fromStatus,
+      toStatus: 'cancelled',
+      actorType: admin ? 'admin' : 'customer',
+      actorId: auth.customerId,
+      actorName: auth.customer.name,
+    });
 
     if (admin) {
       if (orderCustomer?.auth_user_id) {
@@ -908,30 +980,65 @@ app.patch('/orders/:id/status', async (c) => {
     return c.json({ ok: true });
   }
   if (!admin) return c.json({ error: 'FORBIDDEN' }, 403);
-  if (!['pending', 'confirmed', 'delivered', 'no_show'].includes(body.status)) {
+  if (!ADMIN_SETTABLE_STATUSES.includes(body.status)) {
     return c.json({ error: 'INVALID_STATUS' }, 400);
   }
-  const { error } = await client.from('orders').update({ status: body.status }).eq('id', id).eq('store_id', STORE_ID);
+  const toStatus = body.status as OrderStatus;
+  const { error } = await client.from('orders').update({ status: toStatus }).eq('id', id).eq('store_id', STORE_ID);
   if (error) return err(c, error);
 
-  if (orderCustomer?.auth_user_id && body.status === 'confirmed') {
+  await recordStatusChange({
+    orderId: id,
+    fromStatus,
+    toStatus,
+    actorType: 'admin',
+    actorId: auth.customerId,
+    actorName: auth.customer.name,
+  });
+
+  const notifyInfo = STATUS_NOTIFY[toStatus];
+  if (orderCustomer?.auth_user_id && notifyInfo) {
     await notify([orderCustomer.auth_user_id], {
-      type: 'order_confirmed',
-      title: 'Pedido confirmado',
-      message: `Seu pedido ${displayId} foi confirmado!`,
-      link: '/history',
-      relatedId: id,
-    });
-  } else if (orderCustomer?.auth_user_id && body.status === 'delivered') {
-    await notify([orderCustomer.auth_user_id], {
-      type: 'order_delivered',
-      title: 'Pedido entregue',
-      message: `Seu pedido ${displayId} foi entregue. Bom apetite!`,
+      type: notifyInfo.type,
+      title: notifyInfo.title,
+      message: notifyInfo.message(displayId),
       link: '/history',
       relatedId: id,
     });
   }
   return c.json({ ok: true });
+});
+
+// Full audit trail for one order: who changed it, from what, to what, and when. Admins can
+// view any order's history; a customer can only view their own.
+app.get('/orders/:id/history', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const id = c.req.param('id');
+  const client = sb();
+  const admin = await isAdminPhone(auth.customer.phone);
+
+  if (!admin) {
+    const { data: order } = await client.from('orders').select('customer_id').eq('id', id).eq('store_id', STORE_ID).maybeSingle();
+    if (!order || order.customer_id !== auth.customerId) return c.json({ error: 'FORBIDDEN' }, 403);
+  }
+
+  const { data, error } = await client
+    .from('order_status_history')
+    .select('*')
+    .eq('order_id', id)
+    .order('created_at', { ascending: true });
+  if (error) return err(c, error);
+  return c.json(
+    data.map((h) => ({
+      id: h.id,
+      fromStatus: h.from_status,
+      toStatus: h.to_status,
+      changedByType: h.changed_by_type,
+      changedByName: h.changed_by_name,
+      createdAt: h.created_at,
+    })),
+  );
 });
 
 // ---- pickup search ----
@@ -1004,7 +1111,7 @@ app.get('/prepare', async (c) => {
     .from('orders')
     .select('id,order_items(product_id,product_name_snapshot,quantity,unit_price_cents)')
     .eq('store_id', STORE_ID)
-    .in('status', ['pending', 'confirmed']);
+    .in('status', ['pending', 'confirmed', 'preparing']);
   if (error) return err(c, error);
   const byProduct = new Map<string, { productId: string; name: string; qty: number; orderIds: Set<string>; unitCents: number }>();
   for (const o of orders) {

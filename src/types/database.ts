@@ -262,6 +262,57 @@ export type Database = {
           },
         ];
       };
+      order_status_history: {
+        Row: {
+          changed_by_id: string | null;
+          changed_by_name: string;
+          changed_by_type: string;
+          created_at: string;
+          from_status: Database['public']['Enums']['order_status'] | null;
+          id: string;
+          order_id: string;
+          store_id: string;
+          to_status: Database['public']['Enums']['order_status'];
+        };
+        Insert: {
+          changed_by_id?: string | null;
+          changed_by_name: string;
+          changed_by_type: string;
+          created_at?: string;
+          from_status?: Database['public']['Enums']['order_status'] | null;
+          id?: string;
+          order_id: string;
+          store_id: string;
+          to_status: Database['public']['Enums']['order_status'];
+        };
+        Update: {
+          changed_by_id?: string | null;
+          changed_by_name?: string;
+          changed_by_type?: string;
+          created_at?: string;
+          from_status?: Database['public']['Enums']['order_status'] | null;
+          id?: string;
+          order_id?: string;
+          store_id?: string;
+          to_status?: Database['public']['Enums']['order_status'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'order_status_history_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: false;
+            referencedRelation: 'orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'order_status_history_store_id_fkey';
+            columns: ['store_id'];
+            isOneToOne: false;
+            referencedRelation: 'stores';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       orders: {
         Row: {
           cancelled_by: string | null;
@@ -568,7 +619,15 @@ export type Database = {
       };
     };
     Enums: {
-      order_status: 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled';
+      order_status:
+        | 'pending'
+        | 'confirmed'
+        | 'preparing'
+        | 'separated'
+        | 'ready_for_pickup'
+        | 'delivered'
+        | 'no_show'
+        | 'cancelled';
       payment_method: 'pix' | 'cash';
     };
     CompositeTypes: {

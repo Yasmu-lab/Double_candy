@@ -27,7 +27,15 @@ export interface CartLine {
   qty: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled';
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'separated'
+  | 'ready_for_pickup'
+  | 'delivered'
+  | 'no_show'
+  | 'cancelled';
 
 export interface OrderLine {
   productId: string;
