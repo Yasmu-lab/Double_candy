@@ -1,12 +1,15 @@
 import { ShoppingBag } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BottomNav } from '../components/layout/BottomNav';
 import { StatusBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatBRLCents, formatRelativeDate } from '../lib/format';
 import { useAuthStore } from '../store/authStore';
 import { paymentLabel, useOrderStore } from '../store/orderStore';
+import { useUiStore } from '../store/uiStore';
 import type { OrderStatus } from '../types';
+
+const CANCELLABLE: OrderStatus[] = ['pending', 'confirmed'];
 
 const statusIconBg: Record<OrderStatus, string> = {
   delivered: 'linear-gradient(135deg,#C6FF4D,#8fbf20)',
@@ -21,10 +24,25 @@ export function History() {
   const orders = useOrderStore((s) => s.orders);
   const loading = useOrderStore((s) => s.loading);
   const fetchMine = useOrderStore((s) => s.fetchMine);
+  const setStatus = useOrderStore((s) => s.setStatus);
+  const showToast = useUiStore((s) => s.showToast);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (phone) fetchMine(phone);
   }, [phone, fetchMine]);
+
+  const handleCancel = async (id: string, displayId: string) => {
+    setCancellingId(id);
+    try {
+      await setStatus(id, 'cancelled', { cancelledBy: 'client' });
+      showToast(`${displayId} cancelado`);
+    } catch {
+      showToast('Não deu pra cancelar esse pedido.');
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pt-10">
@@ -67,6 +85,15 @@ export function History() {
                 <span className="text-[12.5px] text-text-2">{paymentLabel(o.paymentMethod)}</span>
                 <span className="font-display text-[17px] font-bold text-pink">{formatBRLCents(o.totalCents)}</span>
               </div>
+              {CANCELLABLE.includes(o.status) && (
+                <button
+                  onClick={() => handleCancel(o.id, o.displayId)}
+                  disabled={cancellingId === o.id}
+                  className="mt-3 w-full cursor-pointer rounded-sm border border-red/40 bg-red/[0.1] py-2.5 text-[13px] font-bold text-red transition-colors hover:bg-red/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {cancellingId === o.id ? 'Cancelando...' : 'Cancelar pedido'}
+                </button>
+              )}
             </div>
           ))
         )}
