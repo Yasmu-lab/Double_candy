@@ -6,7 +6,6 @@ import { formatBRLCents } from '../../lib/format';
 import { ApiError } from '../../lib/api';
 import { useCartLines, useCartStore, useCartSubtotalCents } from '../../store/cartStore';
 import { useOrderStore } from '../../store/orderStore';
-import { useAuthStore } from '../../store/authStore';
 import { useUiStore } from '../../store/uiStore';
 import type { PaymentMethod } from '../../types';
 import { ProductImage } from '../ui/ProductImage';
@@ -38,8 +37,6 @@ export function CartOverlay() {
 
   const placeOrder = useOrderStore((s) => s.placeOrder);
   const lastOrder = useOrderStore((s) => s.lastOrder);
-  const name = useAuthStore((s) => s.name);
-  const phone = useAuthStore((s) => s.phone);
   const [submitting, setSubmitting] = useState(false);
 
   if (!cartOpen) return null;
@@ -50,7 +47,7 @@ export function CartOverlay() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await placeOrder(lines, payment, note, { name, phone });
+      await placeOrder(lines, payment, note);
       clear();
       if (isDesktop) {
         setDeskConfirmed(true);

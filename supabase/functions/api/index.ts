@@ -5,6 +5,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 const STORE_ID = '6ce2d2f9-7841-4568-9cf3-e97c1b19db10';
 const LOW_STOCK_THRESHOLD = 8;
 const TZ_OFFSET_HOURS = -3; // America/Sao_Paulo, fixed (Brazil no longer observes DST)
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 let cachedClient: SupabaseClient | null = null;
 function sb(): SupabaseClient {
@@ -20,6 +22,36 @@ function err(c: any, error: unknown, status = 500) {
   console.error(error);
   const message = error && typeof error === 'object' && 'message' in error ? (error as Error).message : String(error);
   return c.json({ error: message }, status);
+}
+
+// ---- auth: resolve the caller's real Supabase Auth identity from the bearer JWT ----
+async function getAuthUser(c: any) {
+  const authHeader = c.req.header('authorization') ?? '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data, error } = await sb().auth.getUser(token);
+  if (error || !data.user) return null;
+  return data.user;
+}
+
+function mapCustomer(row: any) {
+  return { id: row.id, name: row.name, phone: row.phone, photoUrl: row.photo_url };
+}
+
+// Requires a real logged-in customer (not just the anon key). Returns the response to send
+// straight back if unauthorized/not-yet-linked, or { userId, customerId, customer } on success.
+async function requireCustomer(c: any) {
+  const user = await getAuthUser(c);
+  if (!user) return c.json({ error: 'UNAUTHORIZED' }, 401);
+  const { data: customer, error } = await sb()
+    .from('customers')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .eq('store_id', STORE_ID)
+    .maybeSingle();
+  if (error) return err(c, error);
+  if (!customer) return c.json({ error: 'CUSTOMER_NOT_LINKED' }, 404);
+  return { userId: user.id, customerId: customer.id, customer };
 }
 
 // ---- time helpers (fixed -03:00 offset) ----
@@ -121,6 +153,101 @@ app.put('/store', async (c) => {
   const { error } = await sb().from('stores').update(patch).eq('id', STORE_ID);
   if (error) return err(c, error);
   return c.json({ ok: true });
+});
+
+// ---- me (customer profile, tied to the real Supabase Auth session) ----
+
+// Called once right after client-side signUp(). Links the new auth user to an existing
+// customers row with the same phone (preserving order history from before real auth existed),
+// or creates a new one. Idempotent: safe to call again for an already-linked user.
+app.post('/me/bootstrap', async (c) => {
+  const user = await getAuthUser(c);
+  if (!user) return c.json({ error: 'UNAUTHORIZED' }, 401);
+  const body = await c.req.json();
+  if (typeof body.name !== 'string' || !body.name.trim() || typeof body.phone !== 'string' || !body.phone.trim()) {
+    return c.json({ error: 'INVALID_INPUT' }, 400);
+  }
+  const client = sb();
+
+  const { data: existing, error: existingErr } = await client
+    .from('customers')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+  if (existingErr) return err(c, existingErr);
+  if (existing) return c.json(mapCustomer(existing));
+
+  const { data: legacy, error: legacyErr } = await client
+    .from('customers')
+    .select('*')
+    .eq('store_id', STORE_ID)
+    .eq('phone', body.phone.trim())
+    .is('auth_user_id', null)
+    .maybeSingle();
+  if (legacyErr) return err(c, legacyErr);
+
+  if (legacy) {
+    const { data: updated, error } = await client
+      .from('customers')
+      .update({ auth_user_id: user.id, name: body.name.trim() })
+      .eq('id', legacy.id)
+      .select()
+      .single();
+    if (error) return err(c, error);
+    return c.json(mapCustomer(updated));
+  }
+
+  const { data: created, error } = await client
+    .from('customers')
+    .insert({ store_id: STORE_ID, auth_user_id: user.id, name: body.name.trim(), phone: body.phone.trim() })
+    .select()
+    .single();
+  if (error) return err(c, error);
+  return c.json(mapCustomer(created), 201);
+});
+
+app.get('/me', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  return c.json(mapCustomer(auth.customer));
+});
+
+app.put('/me', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const body = await c.req.json();
+  const patch: Record<string, unknown> = {};
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.phone !== undefined) patch.phone = body.phone;
+  if (!Object.keys(patch).length) return c.json(mapCustomer(auth.customer));
+  const { data, error } = await sb().from('customers').update(patch).eq('id', auth.customerId).select().single();
+  if (error) {
+    if (error.code === '23505') return c.json({ error: 'PHONE_IN_USE' }, 409);
+    return err(c, error);
+  }
+  return c.json(mapCustomer(data));
+});
+
+app.post('/me/photo', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const body = await c.req.parseBody();
+  const file = body.file;
+  if (!(file instanceof File)) return c.json({ error: 'INVALID_INPUT' }, 400);
+  if (!IMAGE_MIME_TYPES.has(file.type)) return c.json({ error: 'INVALID_FILE_TYPE' }, 400);
+  if (file.size > MAX_IMAGE_BYTES) return c.json({ error: 'FILE_TOO_LARGE' }, 400);
+
+  const client = sb();
+  const ext = file.type.split('/')[1];
+  const path = `${auth.customerId}-${Date.now()}.${ext}`;
+  const { error: upErr } = await client.storage.from('customer-photos').upload(path, file, { contentType: file.type, upsert: true });
+  if (upErr) return err(c, upErr);
+
+  const { data: pub } = client.storage.from('customer-photos').getPublicUrl(path);
+  const { error: updErr } = await client.from('customers').update({ photo_url: pub.publicUrl }).eq('id', auth.customerId);
+  if (updErr) return err(c, updErr);
+
+  return c.json({ photoUrl: pub.publicUrl });
 });
 
 // ---- categories ----
@@ -252,9 +379,6 @@ app.put('/products/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
 app.post('/products/:id/image', async (c) => {
   const id = c.req.param('id');
   const client = sb();
@@ -293,36 +417,45 @@ app.delete('/products/:id', async (c) => {
 });
 
 // ---- orders ----
+
+// Admin view: every order for the store. Still gated only by the shared anon key today —
+// there is no real admin-role separation yet (tracked as a follow-up, not part of this change).
 app.get('/orders', async (c) => {
-  const phone = c.req.query('phone');
-  const client = sb();
-  let query = client.from('orders').select(ORDER_SELECT).eq('store_id', STORE_ID).order('created_at', { ascending: false });
-  if (phone) {
-    const { data: cust } = await client.from('customers').select('id').eq('store_id', STORE_ID).eq('phone', phone).maybeSingle();
-    if (!cust) return c.json([]);
-    query = query.eq('customer_id', cust.id);
-  }
-  const { data, error } = await query;
+  const { data, error } = await sb()
+    .from('orders')
+    .select(ORDER_SELECT)
+    .eq('store_id', STORE_ID)
+    .order('created_at', { ascending: false });
+  if (error) return err(c, error);
+  return c.json(data.map(mapOrder));
+});
+
+// Customer view: only the authenticated caller's own orders.
+app.get('/orders/mine', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const { data, error } = await sb()
+    .from('orders')
+    .select(ORDER_SELECT)
+    .eq('store_id', STORE_ID)
+    .eq('customer_id', auth.customerId)
+    .order('created_at', { ascending: false });
   if (error) return err(c, error);
   return c.json(data.map(mapOrder));
 });
 
 app.post('/orders', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
   const body = await c.req.json();
-  if (!body.customerName || !body.customerPhone || !Array.isArray(body.items) || body.items.length === 0) {
+  if (!Array.isArray(body.items) || body.items.length === 0) {
     return c.json({ error: 'INVALID_INPUT' }, 400);
   }
   const client = sb();
-  const { data: customer, error: custErr } = await client
-    .from('customers')
-    .upsert({ store_id: STORE_ID, name: body.customerName, phone: body.customerPhone }, { onConflict: 'store_id,phone' })
-    .select()
-    .single();
-  if (custErr) return err(c, custErr);
 
   const { data: created, error: rpcErr } = await client.rpc('create_order', {
     p_store_id: STORE_ID,
-    p_customer_id: customer.id,
+    p_customer_id: auth.customerId,
     p_payment_method: body.paymentMethod,
     p_pickup_window_start: body.pickupWindowStart ?? tomorrowNoonUtcIso(),
     p_items: body.items.map((i: { productId: string; qty: number }) => ({ product_id: i.productId, quantity: i.qty })),

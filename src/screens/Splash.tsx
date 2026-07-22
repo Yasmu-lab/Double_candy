@@ -4,11 +4,11 @@ import { useAuthStore } from '../store/authStore';
 
 export function Splash() {
   const navigate = useNavigate();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const status = useAuthStore((s) => s.status);
 
   return (
     <div
-      onClick={() => navigate(isAuthenticated ? '/home' : '/login')}
+      onClick={() => navigate(status === 'authenticated' ? '/home' : '/login')}
       className="relative flex min-h-dvh cursor-pointer flex-col items-center justify-center gap-8 overflow-hidden"
       style={{
         background: 'radial-gradient(900px 700px at 50% 30%, #3a1a54 0%, #1B1330 70%)',

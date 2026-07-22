@@ -12,14 +12,9 @@ interface OrderState {
   loading: boolean;
   error: string | null;
   lastOrder: Order | null;
-  fetchMine: (phone: string) => Promise<void>;
+  fetchMine: () => Promise<void>;
   fetchAll: () => Promise<void>;
-  placeOrder: (
-    lines: CartLine[],
-    payment: PaymentMethod,
-    note: string,
-    client: { name: string; phone: string },
-  ) => Promise<Order>;
+  placeOrder: (lines: CartLine[], payment: PaymentMethod, note: string) => Promise<Order>;
   setStatus: (id: string, status: OrderStatus, opts?: { cancelledBy?: string; reason?: string }) => Promise<void>;
 }
 
@@ -28,10 +23,10 @@ export const useOrderStore = create<OrderState>()((set) => ({
   loading: false,
   error: null,
   lastOrder: null,
-  fetchMine: async (phone) => {
+  fetchMine: async () => {
     set({ loading: true, error: null });
     try {
-      const orders = await api.getOrders(phone);
+      const orders = await api.getMyOrders();
       set({ orders, loading: false });
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) });
@@ -46,10 +41,8 @@ export const useOrderStore = create<OrderState>()((set) => ({
       set({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
   },
-  placeOrder: async (lines, payment, note, client) => {
+  placeOrder: async (lines, payment, note) => {
     const order = await api.createOrder({
-      customerName: client.name,
-      customerPhone: client.phone,
       paymentMethod: payment,
       note: note || undefined,
       items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
