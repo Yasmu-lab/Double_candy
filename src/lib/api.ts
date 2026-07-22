@@ -154,6 +154,17 @@ export const api = {
     form.append('file', file);
     return request<{ photoUrl: string }>('/me/photo', { method: 'POST', body: form });
   },
+
+  requestPasswordReset: (phone: string) =>
+    request<{ ok: true }>('/password-reset-requests', { method: 'POST', body: JSON.stringify({ phone }) }),
+
+  getPasswordResetRequests: () => request<PasswordResetRequestDto[]>('/password-reset-requests'),
+
+  resolvePasswordReset: (id: string) =>
+    request<{ ok: true; tempPassword: string }>(`/password-reset-requests/${id}/resolve`, { method: 'POST' }),
+
+  dismissPasswordReset: (id: string) =>
+    request<{ ok: true }>(`/password-reset-requests/${id}/dismiss`, { method: 'POST' }),
 };
 
 export interface CustomerDto {
@@ -162,6 +173,16 @@ export interface CustomerDto {
   phone: string;
   photoUrl: string | null;
   isAdmin: boolean;
+}
+
+export interface PasswordResetRequestDto {
+  id: string;
+  phone: string;
+  customerName: string | null;
+  status: 'pending' | 'resolved' | 'dismissed';
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
 }
 
 export interface OrderDto {

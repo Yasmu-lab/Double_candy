@@ -9,6 +9,7 @@ import { Categories } from './screens/admin/Categories';
 import { Clients } from './screens/admin/Clients';
 import { Dashboard } from './screens/admin/Dashboard';
 import { Orders as AdminOrders } from './screens/admin/Orders';
+import { PasswordResets } from './screens/admin/PasswordResets';
 import { Pickup } from './screens/admin/Pickup';
 import { Prepare } from './screens/admin/Prepare';
 import { Products as AdminProducts } from './screens/admin/Products';
@@ -119,6 +120,7 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="prepare" element={<Prepare />} />
           <Route path="pickup" element={<Pickup />} />
+          <Route path="password-resets" element={<PasswordResets />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 

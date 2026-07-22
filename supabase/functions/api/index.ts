@@ -276,6 +276,114 @@ app.post('/me/photo', async (c) => {
   return c.json({ photoUrl: pub.publicUrl });
 });
 
+// ---- password reset requests ----
+// Public (no auth): the whole point is to help someone who is locked out. Never reveals
+// whether the phone actually belongs to a customer — always responds the same way.
+app.post('/password-reset-requests', async (c) => {
+  const body = await c.req.json();
+  if (typeof body.phone !== 'string' || !body.phone.trim()) {
+    return c.json({ error: 'INVALID_INPUT' }, 400);
+  }
+  const phone = normalizePhone(body.phone);
+  const client = sb();
+  const { data: existing, error: existingErr } = await client
+    .from('password_reset_requests')
+    .select('id')
+    .eq('store_id', STORE_ID)
+    .eq('phone', phone)
+    .eq('status', 'pending')
+    .maybeSingle();
+  if (existingErr) return err(c, existingErr);
+  if (!existing) {
+    const { error } = await client.from('password_reset_requests').insert({ store_id: STORE_ID, phone });
+    if (error) return err(c, error);
+  }
+  return c.json({ ok: true }, 201);
+});
+
+app.get('/password-reset-requests', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
+  const client = sb();
+  const { data: requests, error } = await client
+    .from('password_reset_requests')
+    .select('*')
+    .eq('store_id', STORE_ID)
+    .order('created_at', { ascending: false });
+  if (error) return err(c, error);
+  const phones = [...new Set(requests.map((r) => r.phone))];
+  const { data: customers, error: custErr } = await client
+    .from('customers')
+    .select('name,phone')
+    .eq('store_id', STORE_ID)
+    .in('phone', phones.length ? phones : ['']);
+  if (custErr) return err(c, custErr);
+  const nameByPhone = new Map(customers.map((cst) => [cst.phone, cst.name]));
+  return c.json(
+    requests.map((r) => ({
+      id: r.id,
+      phone: r.phone,
+      customerName: nameByPhone.get(r.phone) ?? null,
+      status: r.status,
+      createdAt: r.created_at,
+      resolvedAt: r.resolved_at,
+      resolvedBy: r.resolved_by,
+    })),
+  );
+});
+
+app.post('/password-reset-requests/:id/resolve', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
+  const id = c.req.param('id');
+  const client = sb();
+
+  const { data: request, error: reqErr } = await client
+    .from('password_reset_requests')
+    .select('*')
+    .eq('id', id)
+    .eq('store_id', STORE_ID)
+    .maybeSingle();
+  if (reqErr) return err(c, reqErr);
+  if (!request) return c.json({ error: 'NOT_FOUND' }, 404);
+  if (request.status !== 'pending') return c.json({ error: 'ALREADY_RESOLVED' }, 409);
+
+  const { data: customer, error: custErr } = await client
+    .from('customers')
+    .select('auth_user_id')
+    .eq('store_id', STORE_ID)
+    .eq('phone', request.phone)
+    .maybeSingle();
+  if (custErr) return err(c, custErr);
+  if (!customer?.auth_user_id) return c.json({ error: 'CUSTOMER_NOT_FOUND' }, 404);
+
+  const tempPassword = crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+  const { error: pwErr } = await client.auth.admin.updateUserById(customer.auth_user_id, { password: tempPassword });
+  if (pwErr) return err(c, pwErr);
+
+  const { error: updErr } = await client
+    .from('password_reset_requests')
+    .update({ status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: auth.customer.name })
+    .eq('id', id);
+  if (updErr) return err(c, updErr);
+
+  return c.json({ ok: true, tempPassword });
+});
+
+app.post('/password-reset-requests/:id/dismiss', async (c) => {
+  const auth = await requireAdmin(c);
+  if (auth instanceof Response) return auth;
+  const id = c.req.param('id');
+  const { error } = await sb()
+    .from('password_reset_requests')
+    .update({ status: 'dismissed', resolved_at: new Date().toISOString(), resolved_by: auth.customer.name })
+    .eq('id', id)
+    .eq('store_id', STORE_ID)
+    .eq('status', 'pending');
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
 // ---- categories ----
 app.get('/categories', async (c) => {
   const { data, error } = await sb()
