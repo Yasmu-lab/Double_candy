@@ -390,6 +390,55 @@ app.delete('/notifications/:id', async (c) => {
   return c.json({ ok: true });
 });
 
+// ---- cart (server-persisted, so a logged-in customer's cart follows them across devices) ----
+app.get('/cart', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const { data, error } = await sb().from('cart_items').select('product_id,quantity').eq('customer_id', auth.customerId);
+  if (error) return err(c, error);
+  return c.json(data.map((r) => ({ productId: r.product_id, qty: r.quantity })));
+});
+
+// Upsert absolute quantity for one product. qty <= 0 removes the line — mirrors how the
+// client-side cart already computes the next quantity before calling this.
+app.put('/cart/:productId', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const productId = c.req.param('productId');
+  const body = await c.req.json();
+  const qty = Number(body.qty);
+  const client = sb();
+  if (!Number.isFinite(qty) || qty <= 0) {
+    const { error } = await client.from('cart_items').delete().eq('customer_id', auth.customerId).eq('product_id', productId);
+    if (error) return err(c, error);
+    return c.json({ ok: true });
+  }
+  const { error } = await client.from('cart_items').upsert(
+    { store_id: STORE_ID, customer_id: auth.customerId, product_id: productId, quantity: qty, updated_at: new Date().toISOString() },
+    { onConflict: 'customer_id,product_id' },
+  );
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
+app.delete('/cart/:productId', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const productId = c.req.param('productId');
+  const { error } = await sb().from('cart_items').delete().eq('customer_id', auth.customerId).eq('product_id', productId);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
+// Called after a successful checkout, or when the customer wants to start over.
+app.post('/cart/clear', async (c) => {
+  const auth = await requireCustomer(c);
+  if (auth instanceof Response) return auth;
+  const { error } = await sb().from('cart_items').delete().eq('customer_id', auth.customerId);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
 // ---- password reset requests ----
 // Public (no auth): the whole point is to help someone who is locked out. Never reveals
 // whether the phone actually belongs to a customer — always responds the same way.
@@ -568,28 +617,54 @@ function mapProduct(p: any) {
     name: p.name,
     description: p.description,
     priceCents: p.price_cents,
+    compareAtPriceCents: p.compare_at_price_cents,
     imageUrl: p.image_url,
     active: p.is_active,
+    isFeatured: p.is_featured,
     categoryId: p.category_id,
     category: category?.name ?? null,
     stock: stock?.quantity_available ?? 0,
+    createdAt: p.created_at,
   };
 }
 
+// A product's price can conflict with its "de/por" compare-at price on either create or
+// edit, since the admin form always resubmits both together — catch it early with a clear
+// error instead of surfacing the raw Postgres check-constraint failure.
+function invalidCompareAtPrice(body: any): boolean {
+  return body.compareAtPriceCents != null && body.priceCents != null && body.compareAtPriceCents <= body.priceCents;
+}
+
 app.get('/products', async (c) => {
-  const { data, error } = await sb()
+  const client = sb();
+  const { data, error } = await client
     .from('products')
-    .select('id,name,description,price_cents,image_url,is_active,category_id,categories(name),product_stock(quantity_available)')
+    .select(
+      'id,name,description,price_cents,compare_at_price_cents,image_url,is_active,is_featured,category_id,created_at,categories(name),product_stock(quantity_available)',
+    )
     .eq('store_id', STORE_ID)
     .order('created_at');
   if (error) return err(c, error);
-  return c.json(data.map(mapProduct));
+
+  // Units sold powers the "Mais vendidos" section — computed here rather than stored, same
+  // full-scan approach already used by /dashboard and /reports for this single-store app.
+  const { data: orderItems, error: oiErr } = await client.from('order_items').select('product_id,quantity,orders(store_id,status)');
+  if (oiErr) return err(c, oiErr);
+  const soldByProduct = new Map<string, number>();
+  for (const oi of orderItems ?? []) {
+    const order = one<{ store_id: string; status: string }>((oi as any).orders);
+    if (!order || order.store_id !== STORE_ID || order.status === 'cancelled') continue;
+    soldByProduct.set(oi.product_id, (soldByProduct.get(oi.product_id) ?? 0) + oi.quantity);
+  }
+
+  return c.json(data.map((p) => ({ ...mapProduct(p), unitsSold: soldByProduct.get(p.id) ?? 0 })));
 });
 
 app.post('/products', async (c) => {
   const auth = await requireAdmin(c);
   if (auth instanceof Response) return auth;
   const body = await c.req.json();
+  if (invalidCompareAtPrice(body)) return c.json({ error: 'INVALID_COMPARE_AT_PRICE' }, 400);
   const client = sb();
   const { data: product, error } = await client
     .from('products')
@@ -599,11 +674,16 @@ app.post('/products', async (c) => {
       name: body.name,
       description: body.description ?? null,
       price_cents: body.priceCents,
+      compare_at_price_cents: body.compareAtPriceCents ?? null,
       is_active: body.active ?? true,
+      is_featured: body.isFeatured ?? false,
     })
     .select()
     .single();
-  if (error) return err(c, error);
+  if (error) {
+    if (error.code === '23514') return c.json({ error: 'INVALID_COMPARE_AT_PRICE' }, 400);
+    return err(c, error);
+  }
   const { error: stockError } = await client
     .from('product_stock')
     .insert({ product_id: product.id, quantity_available: body.stock ?? 0 });
@@ -626,16 +706,22 @@ app.put('/products/:id', async (c) => {
   if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const body = await c.req.json();
+  if (invalidCompareAtPrice(body)) return c.json({ error: 'INVALID_COMPARE_AT_PRICE' }, 400);
   const client = sb();
   const patch: Record<string, unknown> = {};
   if (body.name !== undefined) patch.name = body.name;
   if (body.categoryId !== undefined) patch.category_id = body.categoryId;
   if (body.priceCents !== undefined) patch.price_cents = body.priceCents;
+  if (body.compareAtPriceCents !== undefined) patch.compare_at_price_cents = body.compareAtPriceCents;
   if (body.active !== undefined) patch.is_active = body.active;
+  if (body.isFeatured !== undefined) patch.is_featured = body.isFeatured;
   if (body.description !== undefined) patch.description = body.description;
   if (Object.keys(patch).length) {
     const { error } = await client.from('products').update(patch).eq('id', id).eq('store_id', STORE_ID);
-    if (error) return err(c, error);
+    if (error) {
+      if (error.code === '23514') return c.json({ error: 'INVALID_COMPARE_AT_PRICE' }, 400);
+      return err(c, error);
+    }
   }
   if (body.stock !== undefined) {
     const { error } = await client

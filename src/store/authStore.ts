@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type CustomerDto } from '../lib/api';
 import { phoneToEmail, supabase } from '../lib/supabaseClient';
+import { useCartStore } from './cartStore';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -84,6 +85,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   logout: async () => {
     await supabase.auth.signOut();
     set({ status: 'unauthenticated', customer: null, justLoggedIn: false });
+    useCartStore.getState().resetLocal();
   },
 
   updateProfile: async (input) => {

@@ -23,6 +23,7 @@ import { Profile } from './screens/Profile';
 import { ProductDetail } from './screens/ProductDetail';
 import { Splash } from './screens/Splash';
 import { useAuthStore } from './store/authStore';
+import { useCartStore } from './store/cartStore';
 import { useNotificationStore } from './store/notificationStore';
 
 function AuthLoading() {
@@ -55,6 +56,7 @@ function App() {
   const init = useAuthStore((s) => s.init);
   const authStatus = useAuthStore((s) => s.status);
   const fetchNotifications = useNotificationStore((s) => s.fetch);
+  const hydrateCart = useCartStore((s) => s.hydrate);
 
   useEffect(() => {
     init();
@@ -64,8 +66,9 @@ function App() {
     if (authStatus !== 'authenticated') return;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30_000);
+    hydrateCart();
     return () => clearInterval(interval);
-  }, [authStatus, fetchNotifications]);
+  }, [authStatus, fetchNotifications, hydrateCart]);
 
   return (
     <div className="relative">

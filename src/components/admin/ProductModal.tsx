@@ -12,6 +12,7 @@ import { useUiStore } from '../../store/uiStore';
 const IMAGE_ERROR_MESSAGES: Record<string, string> = {
   INVALID_FILE_TYPE: 'Formato não aceito. Use JPG, PNG, WEBP ou GIF.',
   FILE_TOO_LARGE: 'Imagem muito grande. Máximo de 5MB.',
+  INVALID_COMPARE_AT_PRICE: 'O preço original precisa ser maior que o preço atual.',
 };
 
 export function ProductModal() {
@@ -30,8 +31,10 @@ export function ProductModal() {
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [price, setPrice] = useState('');
+  const [compareAtPrice, setCompareAtPrice] = useState('');
   const [stock, setStock] = useState('');
   const [active, setActive] = useState(true);
+  const [isFeatured, setIsFeatured] = useState(false);
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -43,8 +46,10 @@ export function ProductModal() {
     setName(editing?.name ?? '');
     setCategoryId(editing?.categoryId ?? categories[0]?.id ?? '');
     setPrice(editing ? (editing.priceCents / 100).toFixed(2).replace('.', ',') : '');
+    setCompareAtPrice(editing?.compareAtPriceCents != null ? (editing.compareAtPriceCents / 100).toFixed(2).replace('.', ',') : '');
     setStock(editing ? String(editing.stock) : '');
     setActive(editing?.active ?? true);
+    setIsFeatured(editing?.isFeatured ?? false);
     setImageFile(null);
     setImagePreview(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -60,7 +65,9 @@ export function ProductModal() {
   if (!open) return null;
 
   const priceCents = Math.round(Number(price.replace(',', '.')) * 100);
-  const canSave = name.trim().length > 1 && priceCents > 0;
+  const compareAtPriceCents = compareAtPrice.trim() ? Math.round(Number(compareAtPrice.replace(',', '.')) * 100) : null;
+  const compareAtPriceInvalid = compareAtPriceCents != null && compareAtPriceCents <= priceCents;
+  const canSave = name.trim().length > 1 && priceCents > 0 && !compareAtPriceInvalid;
   const displayImage = imagePreview ?? editing?.imageUrl ?? null;
 
   const pickFile = (file: File | undefined) => {
@@ -84,8 +91,10 @@ export function ProductModal() {
         name: name.trim(),
         categoryId: categoryId || null,
         priceCents,
+        compareAtPriceCents,
         stock: Number(stock) || 0,
         active,
+        isFeatured,
       };
       const id = editing ? editing.id : await addProduct(input);
       if (editing) await updateProduct(editing.id, input);
@@ -202,6 +211,29 @@ export function ProductModal() {
             </div>
           </div>
           <div>
+            <label className="mb-[7px] block text-[13px] font-semibold text-text-2">
+              Preço original (de) <span className="font-normal text-text-3">— opcional, pra marcar promoção</span>
+            </label>
+            <div
+              className={[
+                'flex h-[52px] items-center gap-1.5 rounded-sm border bg-card px-[15px]',
+                compareAtPriceInvalid ? 'border-red' : 'border-white/[0.07]',
+              ].join(' ')}
+            >
+              <span className="text-[15px] text-text-2">R$</span>
+              <input
+                value={compareAtPrice}
+                onChange={(e) => setCompareAtPrice(e.target.value)}
+                placeholder="Ex: 12,00"
+                inputMode="decimal"
+                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+              />
+            </div>
+            {compareAtPriceInvalid && (
+              <p className="mt-1.5 text-[12.5px] text-red">Precisa ser maior que o preço atual.</p>
+            )}
+          </div>
+          <div>
             <label className="mb-[7px] block text-[13px] font-semibold text-text-2">Estoque</label>
             <div className="flex h-[52px] items-center rounded-sm border border-white/[0.07] bg-card px-[15px]">
               <input
@@ -219,6 +251,13 @@ export function ProductModal() {
               <div className="mt-0.5 text-[12.5px] text-text-2">Visível no cardápio</div>
             </div>
             <Switch checked={active} onChange={setActive} />
+          </div>
+          <div className="flex items-center justify-between rounded-sm bg-card px-4 py-3.5">
+            <div>
+              <div className="text-sm font-semibold">Destacar na home</div>
+              <div className="mt-0.5 text-[12.5px] text-text-2">Aparece na seção "Destaques"</div>
+            </div>
+            <Switch checked={isFeatured} onChange={setIsFeatured} />
           </div>
         </div>
 

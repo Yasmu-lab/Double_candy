@@ -51,27 +51,31 @@ export const api = {
 
   deleteCategory: (id: string) => request<{ ok: true }>(`/categories/${id}`, { method: 'DELETE' }),
 
-  getProducts: () =>
-    request<
-      {
-        id: string;
-        name: string;
-        description: string | null;
-        priceCents: number;
-        imageUrl: string | null;
-        active: boolean;
-        categoryId: string | null;
-        category: string | null;
-        stock: number;
-      }[]
-    >('/products'),
+  getProducts: () => request<ProductDto[]>('/products'),
 
-  createProduct: (input: { name: string; categoryId: string | null; priceCents: number; stock: number; active: boolean; description?: string }) =>
-    request<{ id: string }>('/products', { method: 'POST', body: JSON.stringify(input) }),
+  createProduct: (input: {
+    name: string;
+    categoryId: string | null;
+    priceCents: number;
+    compareAtPriceCents?: number | null;
+    stock: number;
+    active: boolean;
+    isFeatured?: boolean;
+    description?: string;
+  }) => request<{ id: string }>('/products', { method: 'POST', body: JSON.stringify(input) }),
 
   updateProduct: (
     id: string,
-    input: Partial<{ name: string; categoryId: string | null; priceCents: number; stock: number; active: boolean; description: string }>,
+    input: Partial<{
+      name: string;
+      categoryId: string | null;
+      priceCents: number;
+      compareAtPriceCents: number | null;
+      stock: number;
+      active: boolean;
+      isFeatured: boolean;
+      description: string;
+    }>,
   ) => request<{ ok: true }>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
 
   deleteProduct: (id: string) => request<{ ok: true; softDeleted: boolean }>(`/products/${id}`, { method: 'DELETE' }),
@@ -173,6 +177,15 @@ export const api = {
   markAllNotificationsRead: () => request<{ ok: true }>('/notifications/read-all', { method: 'POST' }),
 
   deleteNotification: (id: string) => request<{ ok: true }>(`/notifications/${id}`, { method: 'DELETE' }),
+
+  getCart: () => request<CartItemDto[]>('/cart'),
+
+  setCartItem: (productId: string, qty: number) =>
+    request<{ ok: true }>(`/cart/${productId}`, { method: 'PUT', body: JSON.stringify({ qty }) }),
+
+  removeCartItem: (productId: string) => request<{ ok: true }>(`/cart/${productId}`, { method: 'DELETE' }),
+
+  clearCart: () => request<{ ok: true }>('/cart/clear', { method: 'POST' }),
 };
 
 export interface CustomerDto {
@@ -181,6 +194,27 @@ export interface CustomerDto {
   phone: string;
   photoUrl: string | null;
   isAdmin: boolean;
+}
+
+export interface ProductDto {
+  id: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  compareAtPriceCents: number | null;
+  imageUrl: string | null;
+  active: boolean;
+  isFeatured: boolean;
+  categoryId: string | null;
+  category: string | null;
+  stock: number;
+  createdAt: string;
+  unitsSold: number;
+}
+
+export interface CartItemDto {
+  productId: string;
+  qty: number;
 }
 
 export interface PasswordResetRequestDto {

@@ -1,18 +1,20 @@
-import { LayoutDashboard, LogOut, Plus, Search, ShoppingBag, SlidersHorizontal, Star, User } from 'lucide-react';
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { Clock, Flame, LayoutDashboard, LogOut, Search, ShoppingBag, SlidersHorizontal, Sparkles, Star, User } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
 import { BottomNav } from '../components/layout/BottomNav';
 import { Chip } from '../components/ui/Chip';
 import { NotificationBell } from '../components/notifications/NotificationBell';
-import { ProductImage } from '../components/ui/ProductImage';
-import { formatBRLCents } from '../lib/format';
+import { ProductCard } from '../components/product/ProductCard';
+import { ProductCarousel } from '../components/product/ProductCarousel';
 import { firstName, useAuthStore } from '../store/authStore';
-import { useCartCount, useCartStore } from '../store/cartStore';
+import { useCartCount } from '../store/cartStore';
 import { useCategoriesStore } from '../store/categoriesStore';
 import { useProductsStore } from '../store/productsStore';
 import { useUiStore } from '../store/uiStore';
-import type { Product } from '../types';
+
+const CAROUSEL_LIMIT = 10;
+const RECENT_DAYS = 14;
 
 function greetingForNow() {
   const h = new Date().getHours();
@@ -28,7 +30,6 @@ export function Home() {
   const justLoggedIn = useAuthStore((s) => s.justLoggedIn);
   const clearJustLoggedIn = useAuthStore((s) => s.clearJustLoggedIn);
   const cartCount = useCartCount();
-  const addItem = useCartStore((s) => s.addItem);
   const openCart = useUiStore((s) => s.openCart);
   const showToast = useUiStore((s) => s.showToast);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -62,21 +63,50 @@ export function Home() {
 
   const greeting = greetingForNow();
   const activeProducts = useMemo(() => products.filter((p) => p.active), [products]);
+  const browsing = category === 'Todos' && !query.trim();
 
+  // Esgotados ficam no fim do cardápio completo — o resto da lista mantém a ordem original.
   const filtered = useMemo(() => {
-    return activeProducts.filter((p) => {
-      if (category !== 'Todos' && p.category !== category) return false;
-      if (query.trim() && !p.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
-      return true;
-    });
+    return activeProducts
+      .filter((p) => {
+        if (category !== 'Todos' && p.category !== category) return false;
+        if (query.trim() && !p.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => Number(a.stock <= 0) - Number(b.stock <= 0));
   }, [activeProducts, category, query]);
 
-  const quickAdd = (e: MouseEvent, p: Product) => {
-    e.stopPropagation();
-    if (p.stock <= 0) return;
-    addItem(p.id, 1);
-    showToast(`${p.name} no carrinho`);
-  };
+  const featured = useMemo(
+    () => (browsing ? activeProducts.filter((p) => p.isFeatured && p.stock > 0).slice(0, CAROUSEL_LIMIT) : []),
+    [activeProducts, browsing],
+  );
+  const onPromo = useMemo(
+    () =>
+      browsing
+        ? activeProducts
+            .filter((p) => p.stock > 0 && p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents)
+            .slice(0, CAROUSEL_LIMIT)
+        : [],
+    [activeProducts, browsing],
+  );
+  const bestSellers = useMemo(
+    () =>
+      browsing
+        ? [...activeProducts]
+            .filter((p) => p.stock > 0 && p.unitsSold > 0)
+            .sort((a, b) => b.unitsSold - a.unitsSold)
+            .slice(0, CAROUSEL_LIMIT)
+        : [],
+    [activeProducts, browsing],
+  );
+  const recent = useMemo(() => {
+    if (!browsing) return [];
+    const cutoff = Date.now() - RECENT_DAYS * 24 * 3600_000;
+    return [...activeProducts]
+      .filter((p) => p.stock > 0 && new Date(p.createdAt).getTime() >= cutoff)
+      .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+      .slice(0, CAROUSEL_LIMIT);
+  }, [activeProducts, browsing]);
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pb-16 lg:pt-10">
@@ -211,6 +241,11 @@ export function Home() {
           </div>
         </div>
 
+        <ProductCarousel title="Destaques" icon={<Sparkles size={19} strokeWidth={2.2} className="text-pink" />} products={featured} />
+        <ProductCarousel title="Promoções" icon={<Star size={19} strokeWidth={2.2} className="text-purple" />} products={onPromo} />
+        <ProductCarousel title="Mais vendidos" icon={<Flame size={19} strokeWidth={2.2} className="text-orange" />} products={bestSellers} />
+        <ProductCarousel title="Novidades" icon={<Clock size={19} strokeWidth={2.2} className="text-lime" />} products={recent} />
+
         {/* menu grid */}
         <section className="mt-6 lg:mt-6">
           <div className="mb-3 flex items-center justify-between lg:mb-4">
@@ -225,42 +260,7 @@ export function Home() {
           ) : (
             <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4 lg:gap-[18px]">
               {filtered.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => navigate(`/product/${p.id}`)}
-                  className="cursor-pointer rounded-[22px] border border-white/5 bg-card p-[11px] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_18px_34px_-14px_rgba(0,0,0,0.6)] lg:p-[13px] lg:hover:-translate-y-[5px] lg:hover:shadow-[0_22px_40px_-16px_rgba(0,0,0,0.6)]"
-                >
-                  <div className="relative h-[118px] overflow-hidden rounded-sm lg:h-[158px]">
-                    <ProductImage product={p} className="h-full w-full" />
-                    {p.stock <= 0 && (
-                      <span className="absolute right-[9px] top-[9px] rounded-full bg-red px-2 py-1 text-[10px] font-bold text-text">
-                        Esgotado
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-[9px] text-sm font-bold lg:mt-[11px] lg:text-[15px]">{p.name}</div>
-                  <div className="mt-0.5 text-[11.5px] text-text-2 lg:text-[12.5px]">{p.category ?? ''}</div>
-                  <div className="mt-[9px] flex items-center justify-between lg:mt-3">
-                    <span className="font-display text-[15px] font-bold text-pink lg:text-[17px]">
-                      {formatBRLCents(p.priceCents)}
-                    </span>
-                    <button
-                      onClick={(e) => quickAdd(e, p)}
-                      disabled={p.stock <= 0}
-                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 transition-all duration-200 hover:bg-pink active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 lg:hidden"
-                    >
-                      <Plus size={17} strokeWidth={2.4} className="text-text" />
-                    </button>
-                    <button
-                      onClick={(e) => quickAdd(e, p)}
-                      disabled={p.stock <= 0}
-                      className="hidden h-[38px] cursor-pointer items-center gap-1.5 rounded-xs border-none bg-card-2 px-[15px] text-[13px] font-bold text-text transition-all duration-200 hover:bg-pink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 lg:flex"
-                    >
-                      <Plus size={16} strokeWidth={2.4} />
-                      Add
-                    </button>
-                  </div>
-                </div>
+                <ProductCard key={p.id} product={p} />
               ))}
             </div>
           )}
