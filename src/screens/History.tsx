@@ -4,7 +4,6 @@ import { BottomNav } from '../components/layout/BottomNav';
 import { StatusBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatBRLCents, formatRelativeDate } from '../lib/format';
-import { useAuthStore } from '../store/authStore';
 import { paymentLabel, useOrderStore } from '../store/orderStore';
 import { useUiStore } from '../store/uiStore';
 import type { OrderStatus } from '../types';
@@ -20,7 +19,6 @@ const statusIconBg: Record<OrderStatus, string> = {
 };
 
 export function History() {
-  const phone = useAuthStore((s) => s.phone);
   const orders = useOrderStore((s) => s.orders);
   const loading = useOrderStore((s) => s.loading);
   const fetchMine = useOrderStore((s) => s.fetchMine);
@@ -29,8 +27,8 @@ export function History() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (phone) fetchMine(phone);
-  }, [phone, fetchMine]);
+    fetchMine();
+  }, [fetchMine]);
 
   const handleCancel = async (id: string, displayId: string) => {
     setCancellingId(id);

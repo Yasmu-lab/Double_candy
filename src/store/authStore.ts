@@ -1,25 +1,102 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { api, ApiError, type CustomerDto } from '../lib/api';
+import { phoneToEmail, supabase } from '../lib/supabaseClient';
+
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 interface AuthState {
-  name: string;
-  phone: string;
-  isAuthenticated: boolean;
-  login: (name: string, phone: string) => void;
-  logout: () => void;
+  status: AuthStatus;
+  customer: CustomerDto | null;
+  justLoggedIn: boolean;
+  init: () => Promise<void>;
+  signUp: (name: string, phone: string, password: string) => Promise<void>;
+  signIn: (phone: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateProfile: (input: Partial<{ name: string; phone: string }>) => Promise<void>;
+  setPhotoUrl: (photoUrl: string) => void;
+  clearJustLoggedIn: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      name: '',
-      phone: '',
-      isAuthenticated: false,
-      login: (name, phone) => set({ name, phone, isAuthenticated: true }),
-      logout: () => set({ name: '', phone: '', isAuthenticated: false }),
-    }),
-    { name: 'double-candy-auth' },
-  ),
-);
+async function bootstrapFromSession(name: string, phone: string): Promise<CustomerDto> {
+  return api.bootstrapMe({ name, phone });
+}
+
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  status: 'loading',
+  customer: null,
+  justLoggedIn: false,
+
+  init: async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      set({ status: 'unauthenticated' });
+    } else {
+      try {
+        const customer = await api.getMe();
+        set({ status: 'authenticated', customer });
+      } catch (e) {
+        const meta = session.user.user_metadata as { name?: string; phone?: string };
+        if (e instanceof ApiError && e.code === 'CUSTOMER_NOT_LINKED' && meta?.name && meta?.phone) {
+          try {
+            const customer = await bootstrapFromSession(meta.name, meta.phone);
+            set({ status: 'authenticated', customer });
+          } catch {
+            set({ status: 'unauthenticated' });
+          }
+        } else {
+          set({ status: 'unauthenticated' });
+        }
+      }
+    }
+
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        set({ status: 'unauthenticated', customer: null, justLoggedIn: false });
+      }
+    });
+  },
+
+  signUp: async (name, phone, password) => {
+    const email = phoneToEmail(phone);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, phone } },
+    });
+    if (error) throw error;
+    if (!data.session) {
+      throw new Error('SIGNUP_NEEDS_CONFIRMATION');
+    }
+    const customer = await bootstrapFromSession(name, phone);
+    set({ status: 'authenticated', customer, justLoggedIn: false });
+  },
+
+  signIn: async (phone, password) => {
+    const email = phoneToEmail(phone);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    const customer = await api.getMe();
+    set({ status: 'authenticated', customer, justLoggedIn: true });
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut();
+    set({ status: 'unauthenticated', customer: null, justLoggedIn: false });
+  },
+
+  updateProfile: async (input) => {
+    const customer = await api.updateMe(input);
+    set({ customer });
+  },
+
+  setPhotoUrl: (photoUrl) => {
+    const customer = get().customer;
+    if (customer) set({ customer: { ...customer, photoUrl } });
+  },
+
+  clearJustLoggedIn: () => set({ justLoggedIn: false }),
+}));
 
 export const firstName = (fullName: string) => fullName.trim().split(/\s+/)[0] || '';

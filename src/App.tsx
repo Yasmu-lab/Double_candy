@@ -1,4 +1,6 @@
+import { Lollipop } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { CartOverlay } from './components/cart/CartOverlay';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -16,17 +18,35 @@ import { Confirmation } from './screens/Confirmation';
 import { History } from './screens/History';
 import { Home } from './screens/Home';
 import { Login } from './screens/Login';
+import { Profile } from './screens/Profile';
 import { ProductDetail } from './screens/ProductDetail';
 import { Splash } from './screens/Splash';
 import { useAuthStore } from './store/authStore';
 
+function AuthLoading() {
+  return (
+    <div className="dc-app-bg flex min-h-dvh items-center justify-center">
+      <div className="animate-dc-float flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pink to-purple">
+        <Lollipop size={30} strokeWidth={2} color="#fff" />
+      </div>
+    </div>
+  );
+}
+
 function RequireAuth({ children }: { children: ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const status = useAuthStore((s) => s.status);
+  if (status === 'loading') return <AuthLoading />;
+  if (status === 'unauthenticated') return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
 function App() {
+  const init = useAuthStore((s) => s.init);
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
   return (
     <div className="relative">
       <Routes>
@@ -61,6 +81,14 @@ function App() {
           element={
             <RequireAuth>
               <History />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <Profile />
             </RequireAuth>
           }
         />

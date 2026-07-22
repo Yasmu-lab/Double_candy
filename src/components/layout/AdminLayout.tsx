@@ -58,10 +58,11 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
   const fetchProducts = useProductsStore((s) => s.fetchProducts);
   const openProdModal = useAdminStore((s) => s.openProdModal);
   const setOpenOrderId = useAdminStore((s) => s.setOpenOrderId);
+  const customer = useAuthStore((s) => s.customer);
   const logout = useAuthStore((s) => s.logout);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -174,7 +175,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
                 <Users size={18} strokeWidth={2} className="text-lime" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-bold">Ana (você)</div>
+                <div className="truncate text-[13px] font-bold">{customer?.name ?? 'Você'}</div>
                 <div className="text-[11px] text-text-2">Administradora</div>
               </div>
               <button

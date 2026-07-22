@@ -1,71 +1,206 @@
-import { ArrowRight, LayoutDashboard, Lollipop, Phone, User } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ArrowRight, Lock, Lollipop, Phone, User } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuthStore } from '../store/authStore';
+import { useUiStore } from '../store/uiStore';
+
+const signUpSchema = z.object({
+  name: z.string().trim().min(2, 'Digite seu nome completo'),
+  phone: z.string().trim().min(8, 'Telefone inválido'),
+  password: z.string().min(6, 'Mínimo de 6 caracteres'),
+});
+type SignUpForm = z.infer<typeof signUpSchema>;
+
+const signInSchema = z.object({
+  phone: z.string().trim().min(8, 'Telefone inválido'),
+  password: z.string().min(1, 'Digite sua senha'),
+});
+type SignInForm = z.infer<typeof signInSchema>;
+
+function translateAuthError(message: string): string {
+  if (message.includes('Invalid login credentials')) return 'Telefone ou senha incorretos.';
+  if (message.includes('already registered') || message.includes('already exists')) {
+    return 'Esse telefone já tem uma conta. Tenta entrar.';
+  }
+  if (message.includes('Password should be at least')) return 'A senha precisa ter pelo menos 6 caracteres.';
+  return 'Não deu pra completar. Tenta de novo.';
+}
 
 export function Login() {
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const signUp = useAuthStore((s) => s.signUp);
+  const signIn = useAuthStore((s) => s.signIn);
+  const showToast = useUiStore((s) => s.showToast);
+  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+  const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = name.trim().length > 1 && phone.trim().length > 7;
+  const signUpForm = useForm<SignUpForm>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { name: '', phone: '', password: '' },
+  });
+  const signInForm = useForm<SignInForm>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { phone: '', password: '' },
+  });
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!canSubmit) return;
-    login(name.trim(), phone.trim());
-    navigate('/home');
+  const onSignUp = async (values: SignUpForm) => {
+    setSubmitting(true);
+    try {
+      await signUp(values.name, values.phone, values.password);
+      navigate('/home');
+    } catch (e) {
+      if (e instanceof Error && e.message === 'SIGNUP_NEEDS_CONFIRMATION') {
+        showToast('Confirmação de e-mail está ativa no projeto Supabase — peça pro admin desativar em Auth > Sign In / Providers > Email.');
+      } else {
+        showToast(e instanceof Error ? translateAuthError(e.message) : 'Não deu pra criar a conta.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onSignIn = async (values: SignInForm) => {
+    setSubmitting(true);
+    try {
+      await signIn(values.phone, values.password);
+      navigate('/home');
+    } catch (e) {
+      showToast(e instanceof Error ? translateAuthError(e.message) : 'Não deu pra entrar.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="dc-app-bg min-h-dvh px-6 py-16 sm:py-20">
-      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm">
+      <div className="mx-auto w-full max-w-sm">
         <div className="mb-7 flex h-[72px] w-[72px] items-center justify-center rounded-lg bg-gradient-to-br from-pink to-purple shadow-[0_16px_40px_-12px_rgba(255,79,160,0.6)]">
           <Lollipop size={36} strokeWidth={2} color="#fff" />
         </div>
-        <h1 className="mb-1.5 font-display text-3xl font-bold tracking-[-0.6px]">Bora entrar</h1>
-        <p className="mb-8 text-[15px] text-text-2">Só o nome e o telefone e você já tá dentro.</p>
 
-        <label className="mb-2 block text-[13px] font-semibold text-text-2">Nome</label>
-        <Input
-          icon={<User size={20} strokeWidth={2} className="text-purple shrink-0" />}
-          placeholder="Seu nome"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          containerClassName="mb-[18px]"
-        />
+        {mode === 'signup' ? (
+          <>
+            <h1 className="mb-1.5 font-display text-3xl font-bold tracking-[-0.6px]">Criar conta</h1>
+            <p className="mb-8 text-[15px] text-text-2">Nome, telefone e uma senha. Rapidinho.</p>
 
-        <label className="mb-2 block text-[13px] font-semibold text-text-2">Telefone</label>
-        <Input
-          icon={<Phone size={20} strokeWidth={2} className="text-pink shrink-0" />}
-          placeholder="(00) 00000-0000"
-          type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          containerClassName="mb-[30px]"
-        />
+            <form onSubmit={signUpForm.handleSubmit(onSignUp)} noValidate>
+              <div className="mb-[18px]">
+                <label className="mb-2 block text-[13px] font-semibold text-text-2">Nome</label>
+                <Input
+                  icon={<User size={20} strokeWidth={2} className="shrink-0 text-purple" />}
+                  placeholder="Seu nome"
+                  {...signUpForm.register('name')}
+                />
+                {signUpForm.formState.errors.name && (
+                  <p className="mt-1.5 text-[12.5px] text-red">{signUpForm.formState.errors.name.message}</p>
+                )}
+              </div>
 
-        <Button type="submit" ripple size="lg" fullWidth disabled={!canSubmit} iconRight={<ArrowRight size={20} strokeWidth={2.2} />}>
-          Entrar
-        </Button>
-        <p className="mt-[22px] text-center text-[12.5px] text-text-3">
-          Ao entrar você concorda com os termos da cantina.
-        </p>
+              <div className="mb-[18px]">
+                <label className="mb-2 block text-[13px] font-semibold text-text-2">Telefone</label>
+                <Input
+                  icon={<Phone size={20} strokeWidth={2} className="shrink-0 text-pink" />}
+                  placeholder="(00) 00000-0000"
+                  type="tel"
+                  {...signUpForm.register('phone')}
+                />
+                {signUpForm.formState.errors.phone && (
+                  <p className="mt-1.5 text-[12.5px] text-red">{signUpForm.formState.errors.phone.message}</p>
+                )}
+              </div>
 
-        {canSubmit && (
-          <Link
-            to="/admin/dashboard"
-            onClick={() => login(name.trim(), phone.trim())}
-            className="mt-6 flex items-center justify-center gap-2 text-[13px] font-semibold text-text-2 hover:text-purple"
-          >
-            <LayoutDashboard size={15} strokeWidth={2} />
-            Acessar painel admin
-          </Link>
+              <div className="mb-[26px]">
+                <label className="mb-2 block text-[13px] font-semibold text-text-2">Senha</label>
+                <Input
+                  icon={<Lock size={20} strokeWidth={2} className="shrink-0 text-lime" />}
+                  placeholder="Mínimo 6 caracteres"
+                  type="password"
+                  {...signUpForm.register('password')}
+                />
+                {signUpForm.formState.errors.password && (
+                  <p className="mt-1.5 text-[12.5px] text-red">{signUpForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                ripple
+                size="lg"
+                fullWidth
+                disabled={submitting}
+                iconRight={<ArrowRight size={20} strokeWidth={2.2} />}
+              >
+                {submitting ? 'Criando conta...' : 'Criar conta'}
+              </Button>
+            </form>
+
+            <button
+              onClick={() => setMode('signin')}
+              className="mt-6 w-full cursor-pointer text-center text-[13px] font-semibold text-text-2 hover:text-purple"
+            >
+              Já tem conta? <span className="text-pink">Entrar</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <h1 className="mb-1.5 font-display text-3xl font-bold tracking-[-0.6px]">Bora entrar</h1>
+            <p className="mb-8 text-[15px] text-text-2">Telefone e senha.</p>
+
+            <form onSubmit={signInForm.handleSubmit(onSignIn)} noValidate>
+              <div className="mb-[18px]">
+                <label className="mb-2 block text-[13px] font-semibold text-text-2">Telefone</label>
+                <Input
+                  icon={<Phone size={20} strokeWidth={2} className="shrink-0 text-pink" />}
+                  placeholder="(00) 00000-0000"
+                  type="tel"
+                  {...signInForm.register('phone')}
+                />
+                {signInForm.formState.errors.phone && (
+                  <p className="mt-1.5 text-[12.5px] text-red">{signInForm.formState.errors.phone.message}</p>
+                )}
+              </div>
+
+              <div className="mb-[26px]">
+                <label className="mb-2 block text-[13px] font-semibold text-text-2">Senha</label>
+                <Input
+                  icon={<Lock size={20} strokeWidth={2} className="shrink-0 text-lime" />}
+                  placeholder="Sua senha"
+                  type="password"
+                  {...signInForm.register('password')}
+                />
+                {signInForm.formState.errors.password && (
+                  <p className="mt-1.5 text-[12.5px] text-red">{signInForm.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                ripple
+                size="lg"
+                fullWidth
+                disabled={submitting}
+                iconRight={<ArrowRight size={20} strokeWidth={2.2} />}
+              >
+                {submitting ? 'Entrando...' : 'Entrar'}
+              </Button>
+            </form>
+
+            <button
+              onClick={() => setMode('signup')}
+              className="mt-6 w-full cursor-pointer text-center text-[13px] font-semibold text-text-2 hover:text-purple"
+            >
+              Não tem conta? <span className="text-pink">Criar conta</span>
+            </button>
+          </>
         )}
-      </form>
+
+        <p className="mt-[22px] text-center text-[12.5px] text-text-3">Ao continuar você concorda com os termos da cantina.</p>
+      </div>
     </div>
   );
 }

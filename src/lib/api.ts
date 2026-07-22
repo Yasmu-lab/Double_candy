@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient';
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -13,11 +15,14 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
       apikey: ANON_KEY,
-      Authorization: `Bearer ${ANON_KEY}`,
+      Authorization: `Bearer ${session?.access_token ?? ANON_KEY}`,
       ...(init?.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...init?.headers,
     },
@@ -77,15 +82,12 @@ export const api = {
     return request<{ imageUrl: string }>(`/products/${id}/image`, { method: 'POST', body: form });
   },
 
-  getOrders: (phone?: string) => request<OrderDto[]>(`/orders${phone ? `?phone=${encodeURIComponent(phone)}` : ''}`),
+  getOrders: () => request<OrderDto[]>('/orders'),
 
-  createOrder: (input: {
-    customerName: string;
-    customerPhone: string;
-    paymentMethod: 'pix' | 'cash';
-    note?: string;
-    items: { productId: string; qty: number }[];
-  }) => request<OrderDto>('/orders', { method: 'POST', body: JSON.stringify(input) }),
+  getMyOrders: () => request<OrderDto[]>('/orders/mine'),
+
+  createOrder: (input: { paymentMethod: 'pix' | 'cash'; note?: string; items: { productId: string; qty: number }[] }) =>
+    request<OrderDto>('/orders', { method: 'POST', body: JSON.stringify(input) }),
 
   setOrderStatus: (
     id: string,
@@ -138,7 +140,28 @@ export const api = {
       topPayment: { method: 'pix' | 'cash'; pct: number };
       monthly: { label: string; count: number }[];
     }>('/reports'),
+
+  bootstrapMe: (input: { name: string; phone: string }) =>
+    request<CustomerDto>('/me/bootstrap', { method: 'POST', body: JSON.stringify(input) }),
+
+  getMe: () => request<CustomerDto>('/me'),
+
+  updateMe: (input: Partial<{ name: string; phone: string }>) =>
+    request<CustomerDto>('/me', { method: 'PUT', body: JSON.stringify(input) }),
+
+  uploadMyPhoto: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<{ photoUrl: string }>('/me/photo', { method: 'POST', body: form });
+  },
 };
+
+export interface CustomerDto {
+  id: string;
+  name: string;
+  phone: string;
+  photoUrl: string | null;
+}
 
 export interface OrderDto {
   id: string;
