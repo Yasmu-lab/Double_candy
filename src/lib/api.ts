@@ -165,6 +165,14 @@ export const api = {
 
   dismissPasswordReset: (id: string) =>
     request<{ ok: true }>(`/password-reset-requests/${id}/dismiss`, { method: 'POST' }),
+
+  getNotifications: () => request<NotificationDto[]>('/notifications'),
+
+  markNotificationRead: (id: string) => request<{ ok: true }>(`/notifications/${id}/read`, { method: 'PATCH' }),
+
+  markAllNotificationsRead: () => request<{ ok: true }>('/notifications/read-all', { method: 'POST' }),
+
+  deleteNotification: (id: string) => request<{ ok: true }>(`/notifications/${id}`, { method: 'DELETE' }),
 };
 
 export interface CustomerDto {
@@ -183,6 +191,28 @@ export interface PasswordResetRequestDto {
   createdAt: string;
   resolvedAt: string | null;
   resolvedBy: string | null;
+}
+
+export type NotificationType =
+  | 'order_received'
+  | 'order_confirmed'
+  | 'order_delivered'
+  | 'order_cancelled'
+  | 'new_order'
+  | 'out_of_stock'
+  | 'low_stock'
+  | 'new_customer'
+  | 'new_product';
+
+export interface NotificationDto {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  link: string | null;
+  relatedId: string | null;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export interface OrderDto {

@@ -1,10 +1,10 @@
-import { Bell, LayoutDashboard, LogOut, Plus, Search, ShoppingBag, SlidersHorizontal, Star, User } from 'lucide-react';
+import { LayoutDashboard, LogOut, Plus, Search, ShoppingBag, SlidersHorizontal, Star, User } from 'lucide-react';
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
 import { BottomNav } from '../components/layout/BottomNav';
 import { Chip } from '../components/ui/Chip';
-import { IconButton } from '../components/ui/IconButton';
+import { NotificationBell } from '../components/notifications/NotificationBell';
 import { ProductImage } from '../components/ui/ProductImage';
 import { formatBRLCents } from '../lib/format';
 import { firstName, useAuthStore } from '../store/authStore';
@@ -147,10 +147,7 @@ export function Home() {
             />
           </div>
 
-          <IconButton tone="card" className="relative shrink-0 lg:hidden">
-            <Bell size={20} strokeWidth={2} />
-            <span className="absolute right-[11px] top-[9px] h-2 w-2 rounded-full border-2 border-bg-deep bg-pink" />
-          </IconButton>
+          <NotificationBell />
 
           <button
             onClick={openCart}

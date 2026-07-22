@@ -1,6 +1,4 @@
 import {
-  AlertTriangle,
-  Bell,
   ClipboardCheck,
   KeyRound,
   LayoutDashboard,
@@ -18,12 +16,11 @@ import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
 import { useProductsStore } from '../../store/productsStore';
-
-const LOW_STOCK_THRESHOLD = 8;
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -71,10 +68,6 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
   };
 
   const pendingOrders = useMemo(() => orders.filter((o) => o.status === 'pending'), [orders]);
-  const lowStockProducts = useMemo(
-    () => products.filter((p) => p.active && p.stock <= LOW_STOCK_THRESHOLD),
-    [products],
-  );
   const [pendingResets, setPendingResets] = useState<{ id: string; phone: string; customerName: string | null }[]>([]);
 
   useEffect(() => {
@@ -88,7 +81,6 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -132,8 +124,6 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
     setSearchOpen(false);
     navigate('/admin/clients');
   };
-
-  const hasNotifications = pendingOrders.length > 0 || lowStockProducts.length > 0 || pendingResets.length > 0;
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 py-6 lg:px-8 lg:py-7">
@@ -278,90 +268,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
                 )}
               </div>
 
-              <div
-                onBlur={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setNotifOpen(false);
-                }}
-                className="relative"
-              >
-                <button
-                  onClick={() => setNotifOpen((v) => !v)}
-                  className="relative flex h-[46px] w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-sm border border-white/[0.06] bg-surface text-text"
-                >
-                  <Bell size={20} strokeWidth={2} />
-                  {hasNotifications && (
-                    <span className="absolute right-3 top-2.5 h-2 w-2 rounded-full border-2 border-surface bg-red" />
-                  )}
-                </button>
-                {notifOpen && (
-                  <div className="dc-scroll absolute right-0 top-[54px] z-30 max-h-[400px] w-[320px] overflow-y-auto rounded-md border border-white/[0.08] bg-surface p-2 shadow-[0_24px_50px_-16px_rgba(0,0,0,0.6)]">
-                    {!hasNotifications && (
-                      <div className="px-3 py-6 text-center text-[13px] text-text-2">Tudo em dia por aqui.</div>
-                    )}
-                    {pendingOrders.length > 0 && (
-                      <div className="mb-1">
-                        <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-2">
-                          Pedidos pendentes ({pendingOrders.length})
-                        </div>
-                        {pendingOrders.slice(0, 4).map((o) => (
-                          <button
-                            key={o.id}
-                            onClick={() => {
-                              setOpenOrderId(o.id);
-                              setNotifOpen(false);
-                              navigate('/admin/orders');
-                            }}
-                            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2 text-left text-[13.5px] font-semibold text-text transition-colors hover:bg-card-2"
-                          >
-                            <ShoppingBag size={15} strokeWidth={2} className="shrink-0 text-pink" />
-                            {o.displayId} · {o.client}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {lowStockProducts.length > 0 && (
-                      <div className="mb-1">
-                        <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-2">
-                          Estoque baixo ({lowStockProducts.length})
-                        </div>
-                        {lowStockProducts.slice(0, 4).map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => {
-                              setNotifOpen(false);
-                              navigate('/admin/products');
-                            }}
-                            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2 text-left text-[13.5px] font-semibold text-text transition-colors hover:bg-card-2"
-                          >
-                            <AlertTriangle size={15} strokeWidth={2} className="shrink-0 text-red" />
-                            {p.name} · {p.stock} un.
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {pendingResets.length > 0 && (
-                      <div>
-                        <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-2">
-                          Recuperação de senha ({pendingResets.length})
-                        </div>
-                        {pendingResets.slice(0, 4).map((r) => (
-                          <button
-                            key={r.id}
-                            onClick={() => {
-                              setNotifOpen(false);
-                              navigate('/admin/password-resets');
-                            }}
-                            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2 text-left text-[13.5px] font-semibold text-text transition-colors hover:bg-card-2"
-                          >
-                            <KeyRound size={15} strokeWidth={2} className="shrink-0 text-purple" />
-                            {r.customerName ?? r.phone}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <NotificationBell />
             </div>
           </div>
 
