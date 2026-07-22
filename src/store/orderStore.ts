@@ -20,7 +20,7 @@ interface OrderState {
     note: string,
     client: { name: string; phone: string },
   ) => Promise<Order>;
-  setStatus: (id: string, status: OrderStatus) => Promise<void>;
+  setStatus: (id: string, status: OrderStatus, opts?: { cancelledBy?: string; reason?: string }) => Promise<void>;
 }
 
 export const useOrderStore = create<OrderState>()((set) => ({
@@ -57,8 +57,8 @@ export const useOrderStore = create<OrderState>()((set) => ({
     set((state) => ({ orders: [order, ...state.orders], lastOrder: order }));
     return order;
   },
-  setStatus: async (id, status) => {
-    await api.setOrderStatus(id, status);
+  setStatus: async (id, status, opts) => {
+    await api.setOrderStatus(id, status, opts);
     set((state) => ({
       orders: state.orders.map((o) => (o.id === id ? { ...o, status } : o)),
     }));

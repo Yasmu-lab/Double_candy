@@ -87,8 +87,11 @@ export const api = {
     items: { productId: string; qty: number }[];
   }) => request<OrderDto>('/orders', { method: 'POST', body: JSON.stringify(input) }),
 
-  setOrderStatus: (id: string, status: 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled') =>
-    request<{ ok: true }>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  setOrderStatus: (
+    id: string,
+    status: 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled',
+    opts?: { cancelledBy?: string; reason?: string },
+  ) => request<{ ok: true }>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, ...opts }) }),
 
   searchPickup: (q: string) => request<OrderDto[]>(`/pickup?q=${encodeURIComponent(q)}`),
 
