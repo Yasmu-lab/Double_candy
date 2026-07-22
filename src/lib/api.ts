@@ -106,32 +106,42 @@ export const api = {
 
   getPrepare: () => request<{ productId: string; name: string; qty: number; orders: number; valueCents: number }[]>('/prepare'),
 
-  getDashboard: () =>
-    request<{
+  getDashboard: (params?: { period: DashboardPeriod; from?: string; to?: string }) => {
+    const q = new URLSearchParams();
+    if (params) {
+      q.set('period', params.period);
+      if (params.from) q.set('from', params.from);
+      if (params.to) q.set('to', params.to);
+    }
+    const qs = q.toString();
+    return request<{
       ordersToday: number;
       ordersTodayTrend: number;
       ordersTomorrow: number;
       revenueTodayCents: number;
       revenueTodayTrend: number;
-      revenueMonthCents: number;
-      revenueMonthTrend: number;
-      avgTicketCents: number;
-      avgTicketTrend: number;
-      productsSoldMonth: number;
-      productsSoldTrend: number;
       deliveredToday: number;
       deliveredTotal: number;
       pendingCount: number;
+      lowStockCount: number;
+      period: DashboardPeriod;
+      periodLabel: string;
+      revenuePeriodCents: number;
+      revenuePeriodTrend: number;
+      avgTicketCents: number;
+      avgTicketTrend: number;
+      productsSoldPeriod: number;
+      productsSoldTrend: number;
       bestSellerName: string;
       bestSellerQty: number;
       topClientName: string;
       topClientSpentCents: number;
-      lowStockCount: number;
-      weeklyRevenueCents: number[];
-      paymentDistribution: { pix: number; cash: number; pixCount: number; cashCount: number };
       bestSellers: { name: string; qty: number }[];
+      chartSeries: { label: string; valueCents: number }[];
+      paymentDistribution: { pix: number; cash: number; pixCount: number; cashCount: number };
       recentOrders: { id: string; displayId: string; client: string; items: number; totalCents: number; status: string }[];
-    }>('/dashboard'),
+    }>(`/dashboard${qs ? `?${qs}` : ''}`);
+  },
 
   getReports: () =>
     request<{
@@ -241,6 +251,8 @@ export type NotificationType =
   | 'low_stock'
   | 'new_customer'
   | 'new_product';
+
+export type DashboardPeriod = 'today' | 'week' | 'month' | 'year' | 'custom';
 
 export interface OrderStatusHistoryDto {
   id: string;

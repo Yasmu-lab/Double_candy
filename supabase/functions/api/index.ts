@@ -194,6 +194,107 @@ function localMonthRangeUtc(monthOffset = 0) {
   const endUtc = new Date(endLocal.getTime() - TZ_OFFSET_HOURS * 3600_000);
   return { start: startUtc.toISOString(), end: endUtc.toISOString() };
 }
+function localYearRangeUtc(yearOffset = 0) {
+  const local = localNow();
+  const y = local.getUTCFullYear() + yearOffset;
+  const startLocal = new Date(Date.UTC(y, 0, 1, 0, 0, 0));
+  const endLocal = new Date(Date.UTC(y + 1, 0, 1, 0, 0, 0));
+  const startUtc = new Date(startLocal.getTime() - TZ_OFFSET_HOURS * 3600_000);
+  const endUtc = new Date(endLocal.getTime() - TZ_OFFSET_HOURS * 3600_000);
+  return { start: startUtc.toISOString(), end: endUtc.toISOString() };
+}
+function lastNDaysRangeUtc(n: number) {
+  return { start: localDayRangeUtc(-(n - 1)).start, end: localDayRangeUtc(1).start };
+}
+// from/to are 'YYYY-MM-DD' local calendar dates, inclusive on both ends.
+function customRangeUtc(from: string, to: string) {
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  const startLocal = new Date(Date.UTC(fy, fm - 1, fd, 0, 0, 0));
+  const endLocalExclusive = new Date(Date.UTC(ty, tm - 1, td + 1, 0, 0, 0));
+  const startUtc = new Date(startLocal.getTime() - TZ_OFFSET_HOURS * 3600_000);
+  const endUtc = new Date(endLocalExclusive.getTime() - TZ_OFFSET_HOURS * 3600_000);
+  return { start: startUtc.toISOString(), end: endUtc.toISOString() };
+}
+function periodRange(period: string, from?: string, to?: string) {
+  switch (period) {
+    case 'today':
+      return localDayRangeUtc(0);
+    case 'week':
+      return lastNDaysRangeUtc(7);
+    case 'year':
+      return localYearRangeUtc(0);
+    case 'custom':
+      return from && to ? customRangeUtc(from, to) : localMonthRangeUtc(0);
+    case 'month':
+    default:
+      return localMonthRangeUtc(0);
+  }
+}
+// Same-length window immediately preceding the period, used for the trend (% change) comparison.
+function previousPeriodRange(range: { start: string; end: string }) {
+  const durationMs = new Date(range.end).getTime() - new Date(range.start).getTime();
+  return { start: new Date(new Date(range.start).getTime() - durationMs).toISOString(), end: range.start };
+}
+function periodLabelFor(period: string, range: { start: string; end: string }, from?: string, to?: string) {
+  switch (period) {
+    case 'today':
+      return 'Hoje';
+    case 'week':
+      return 'Últimos 7 dias';
+    case 'year':
+      return `Ano de ${new Date(range.start).getUTCFullYear()}`;
+    case 'custom':
+      return from && to ? `${from.split('-').reverse().join('/')} – ${to.split('-').reverse().join('/')}` : 'Este mês';
+    case 'month':
+    default:
+      return 'Este mês';
+  }
+}
+// Buckets orders' revenue into a chart series, adapting granularity to the period's span:
+// hourly for a single day, daily for up to ~45 days, monthly beyond that (e.g. a full year).
+function bucketRevenue(orders: any[], range: { start: string; end: string }) {
+  const startMs = new Date(range.start).getTime();
+  const endMs = new Date(range.end).getTime();
+  const spanDays = (endMs - startMs) / 86_400_000;
+  const inRange = orders.filter((o) => within(o.created_at, range) && o.status !== 'cancelled');
+
+  if (spanDays <= 1.5) {
+    const series = Array.from({ length: 12 }, (_, i) => ({ label: `${String(i * 2).padStart(2, '0')}h`, valueCents: 0 }));
+    for (const o of inRange) {
+      const localDate = new Date(new Date(o.created_at).getTime() + TZ_OFFSET_HOURS * 3600_000);
+      series[Math.floor(localDate.getUTCHours() / 2)].valueCents += o.total_cents;
+    }
+    return series;
+  }
+  if (spanDays <= 45) {
+    const days = Math.round(spanDays);
+    const series = Array.from({ length: days }, (_, i) => {
+      const localDate = new Date(startMs + i * 86_400_000 + TZ_OFFSET_HOURS * 3600_000);
+      return { label: `${String(localDate.getUTCDate()).padStart(2, '0')}/${String(localDate.getUTCMonth() + 1).padStart(2, '0')}`, valueCents: 0 };
+    });
+    for (const o of inRange) {
+      const idx = Math.floor((new Date(o.created_at).getTime() - startMs) / 86_400_000);
+      if (idx >= 0 && idx < series.length) series[idx].valueCents += o.total_cents;
+    }
+    return series;
+  }
+  const monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const months: { y: number; m: number }[] = [];
+  let cursor = new Date(startMs + TZ_OFFSET_HOURS * 3600_000);
+  const endLocalMs = endMs + TZ_OFFSET_HOURS * 3600_000;
+  while (cursor.getTime() < endLocalMs) {
+    months.push({ y: cursor.getUTCFullYear(), m: cursor.getUTCMonth() });
+    cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+  }
+  const series = months.map(({ m }) => ({ label: monthLabels[m], valueCents: 0 }));
+  for (const o of inRange) {
+    const localDate = new Date(new Date(o.created_at).getTime() + TZ_OFFSET_HOURS * 3600_000);
+    const idx = months.findIndex((mo) => mo.y === localDate.getUTCFullYear() && mo.m === localDate.getUTCMonth());
+    if (idx >= 0) series[idx].valueCents += o.total_cents;
+  }
+  return series;
+}
 function tomorrowNoonUtcIso() {
   const local = localNow();
   const y = local.getUTCFullYear();
@@ -1140,6 +1241,10 @@ app.get('/prepare', async (c) => {
 app.get('/dashboard', async (c) => {
   const auth = await requireAdmin(c);
   if (auth instanceof Response) return auth;
+  const period = c.req.query('period') ?? 'month';
+  const from = c.req.query('from') ?? undefined;
+  const to = c.req.query('to') ?? undefined;
+
   const client = sb();
   const [{ data: products, error: pe }, { data: stock, error: se }, { data: orders, error: oe }] = await Promise.all([
     client.from('products').select('id,name').eq('store_id', STORE_ID),
@@ -1150,39 +1255,38 @@ app.get('/dashboard', async (c) => {
   if (se) return err(c, se);
   if (oe) return err(c, oe);
 
+  const notCancelled = (o: any) => o.status !== 'cancelled';
+
+  // "Right now" operational metrics — always today/tomorrow, independent of the selected period.
   const todayR = localDayRangeUtc(0);
   const yesterdayR = localDayRangeUtc(-1);
   const tomorrowR = localDayRangeUtc(1);
-  const monthR = localMonthRangeUtc(0);
-  const prevMonthR = localMonthRangeUtc(-1);
-  const notCancelled = (o: any) => o.status !== 'cancelled';
-
   const ordersToday = orders.filter((o) => within(o.created_at, todayR));
   const ordersYesterday = orders.filter((o) => within(o.created_at, yesterdayR));
   const ordersTomorrow = orders.filter((o) => within(o.pickup_window_start, tomorrowR));
-
   const revenueToday = ordersToday.filter(notCancelled).reduce((s, o) => s + o.total_cents, 0);
   const revenueYesterday = ordersYesterday.filter(notCancelled).reduce((s, o) => s + o.total_cents, 0);
-
-  const monthOrders = orders.filter((o) => within(o.created_at, monthR) && notCancelled(o));
-  const prevMonthOrders = orders.filter((o) => within(o.created_at, prevMonthR) && notCancelled(o));
-  const revenueMonth = monthOrders.reduce((s, o) => s + o.total_cents, 0);
-  const revenuePrevMonth = prevMonthOrders.reduce((s, o) => s + o.total_cents, 0);
-
-  const avgTicket = monthOrders.length ? Math.round(revenueMonth / monthOrders.length) : 0;
-  const avgTicketPrev = prevMonthOrders.length ? Math.round(revenuePrevMonth / prevMonthOrders.length) : 0;
-
-  const qtyOf = (o: any) => o.lines.reduce((s: number, li: any) => s + li.qty, 0);
-  const productsSoldMonth = monthOrders.reduce((s, o) => s + qtyOf(mapOrder(o)), 0);
-  const productsSoldPrevMonth = prevMonthOrders.reduce((s, o) => s + qtyOf(mapOrder(o)), 0);
-
   const deliveredToday = orders.filter((o) => o.status === 'delivered' && within(o.created_at, todayR)).length;
   const deliveredTotal = orders.filter((o) => o.status === 'delivered').length;
   const pendingCount = orders.filter((o) => o.status === 'pending').length;
+  const lowStockCount = stock.filter((s) => s.quantity_available <= LOW_STOCK_THRESHOLD).length;
+
+  // Report-style metrics — scoped to the selected period (Hoje/Semana/Mês/Ano/personalizado).
+  const range = periodRange(period, from, to);
+  const prevRange = previousPeriodRange(range);
+  const periodOrders = orders.filter((o) => within(o.created_at, range) && notCancelled(o));
+  const prevPeriodOrders = orders.filter((o) => within(o.created_at, prevRange) && notCancelled(o));
+
+  const revenuePeriod = periodOrders.reduce((s, o) => s + o.total_cents, 0);
+  const revenuePrevPeriod = prevPeriodOrders.reduce((s, o) => s + o.total_cents, 0);
+  const avgTicket = periodOrders.length ? Math.round(revenuePeriod / periodOrders.length) : 0;
+  const avgTicketPrev = prevPeriodOrders.length ? Math.round(revenuePrevPeriod / prevPeriodOrders.length) : 0;
+  const qtyOfItems = (o: any) => o.order_items.reduce((s: number, li: any) => s + li.quantity, 0);
+  const productsSoldPeriod = periodOrders.reduce((s, o) => s + qtyOfItems(o), 0);
+  const productsSoldPrevPeriod = prevPeriodOrders.reduce((s, o) => s + qtyOfItems(o), 0);
 
   const qtyByProduct = new Map<string, number>();
-  for (const o of orders) {
-    if (!notCancelled(o)) continue;
+  for (const o of periodOrders) {
     for (const li of o.order_items) qtyByProduct.set(li.product_id, (qtyByProduct.get(li.product_id) ?? 0) + li.quantity);
   }
   let bestSellerId: string | null = null;
@@ -1196,8 +1300,7 @@ app.get('/dashboard', async (c) => {
   const bestSellerName = bestSellerId ? (products.find((p) => p.id === bestSellerId)?.name ?? '—') : '—';
 
   const spentByCustomer = new Map<string, { name: string; total: number }>();
-  for (const o of orders) {
-    if (!notCancelled(o)) continue;
+  for (const o of periodOrders) {
     const cust = one<{ name: string }>((o as any).customers);
     const cur = spentByCustomer.get(o.customer_id) ?? { name: cust?.name ?? '—', total: 0 };
     cur.total += o.total_cents;
@@ -1208,18 +1311,8 @@ app.get('/dashboard', async (c) => {
     if (!topClient || v.total > topClient.total) topClient = v;
   }
 
-  const lowStockCount = stock.filter((s) => s.quantity_available <= LOW_STOCK_THRESHOLD).length;
-
-  const weeklyRevenueCents = [6, 5, 4, 3, 2, 1, 0]
-    .reverse()
-    .map((offset) => {
-      const r = localDayRangeUtc(-offset);
-      return orders.filter((o) => notCancelled(o) && within(o.created_at, r)).reduce((s, o) => s + o.total_cents, 0);
-    });
-
   const payCounts = { pix: 0, cash: 0 };
-  for (const o of orders) {
-    if (!notCancelled(o)) continue;
+  for (const o of periodOrders) {
     payCounts[o.payment_method as 'pix' | 'cash'] = (payCounts[o.payment_method as 'pix' | 'cash'] ?? 0) + 1;
   }
   const payTotal = payCounts.pix + payCounts.cash || 1;
@@ -1228,6 +1321,8 @@ app.get('/dashboard', async (c) => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([pid, qty]) => ({ name: products.find((p) => p.id === pid)?.name ?? '—', qty }));
+
+  const chartSeries = bucketRevenue(orders, range);
 
   const recentOrders = [...orders]
     .sort((a, b) => (b.created_at > a.created_at ? 1 : -1))
@@ -1250,28 +1345,31 @@ app.get('/dashboard', async (c) => {
     ordersTomorrow: ordersTomorrow.length,
     revenueTodayCents: revenueToday,
     revenueTodayTrend: pctChange(revenueToday, revenueYesterday),
-    revenueMonthCents: revenueMonth,
-    revenueMonthTrend: pctChange(revenueMonth, revenuePrevMonth),
-    avgTicketCents: avgTicket,
-    avgTicketTrend: pctChange(avgTicket, avgTicketPrev),
-    productsSoldMonth,
-    productsSoldTrend: pctChange(productsSoldMonth, productsSoldPrevMonth),
     deliveredToday,
     deliveredTotal,
     pendingCount,
+    lowStockCount,
+
+    period,
+    periodLabel: periodLabelFor(period, range, from, to),
+    revenuePeriodCents: revenuePeriod,
+    revenuePeriodTrend: pctChange(revenuePeriod, revenuePrevPeriod),
+    avgTicketCents: avgTicket,
+    avgTicketTrend: pctChange(avgTicket, avgTicketPrev),
+    productsSoldPeriod,
+    productsSoldTrend: pctChange(productsSoldPeriod, productsSoldPrevPeriod),
     bestSellerName,
     bestSellerQty,
     topClientName: topClient?.name ?? '—',
     topClientSpentCents: topClient?.total ?? 0,
-    lowStockCount,
-    weeklyRevenueCents,
+    bestSellers,
+    chartSeries,
     paymentDistribution: {
       pix: Math.round((payCounts.pix / payTotal) * 100),
       cash: Math.round((payCounts.cash / payTotal) * 100),
       pixCount: payCounts.pix,
       cashCount: payCounts.cash,
     },
-    bestSellers,
     recentOrders,
   });
 });
