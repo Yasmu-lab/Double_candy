@@ -1,41 +1,56 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ProductModal } from '../../components/admin/ProductModal';
 import { Chip } from '../../components/ui/Chip';
 import { ProductImage } from '../../components/ui/ProductImage';
-import { formatBRL } from '../../lib/format';
+import { formatBRLCents } from '../../lib/format';
 import { useAdminStore } from '../../store/adminStore';
+import { useCategoriesStore } from '../../store/categoriesStore';
 import { useProductsStore } from '../../store/productsStore';
 import { useUiStore } from '../../store/uiStore';
-import type { CategoryName } from '../../types';
 
 const LOW_STOCK_THRESHOLD = 8;
-const FILTERS: CategoryName[] = ['Todos', 'Balas', 'Chocolates', 'Doces'];
 
 export function Products() {
   const products = useProductsStore((s) => s.products);
+  const loading = useProductsStore((s) => s.loading);
+  const fetchProducts = useProductsStore((s) => s.fetchProducts);
   const removeProduct = useProductsStore((s) => s.removeProduct);
+  const categories = useCategoriesStore((s) => s.categories);
+  const fetchCategories = useCategoriesStore((s) => s.fetchCategories);
   const openProdModal = useAdminStore((s) => s.openProdModal);
   const showToast = useUiStore((s) => s.showToast);
-  const [filter, setFilter] = useState<CategoryName>('Todos');
+  const [filter, setFilter] = useState('Todos');
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
   const filtered = useMemo(
     () => (filter === 'Todos' ? products : products.filter((p) => p.category === filter)),
     [products, filter],
   );
 
-  const handleDelete = (id: number, name: string) => {
-    removeProduct(id);
-    showToast(`${name} removido`);
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await removeProduct(id);
+      showToast(`${name} removido`);
+    } catch {
+      showToast('Não deu pra remover esse produto.');
+    }
   };
 
   return (
     <div className="animate-dc-fade-up">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
-          {FILTERS.map((f) => (
-            <Chip key={f} active={f === filter} onClick={() => setFilter(f)}>
-              {f}
+          <Chip active={filter === 'Todos'} onClick={() => setFilter('Todos')}>
+            Todos
+          </Chip>
+          {categories.map((c) => (
+            <Chip key={c.id} active={c.name === filter} onClick={() => setFilter(c.name)}>
+              {c.name}
             </Chip>
           ))}
         </div>
@@ -57,6 +72,7 @@ export function Products() {
           <span>Status</span>
           <span className="text-right">Ações</span>
         </div>
+        {loading && filtered.length === 0 && <div className="px-[22px] py-10 text-center text-sm text-text-2">Carregando...</div>}
         {filtered.map((p) => {
           const low = p.stock <= LOW_STOCK_THRESHOLD;
           const statusLabel = !p.active ? 'Inativo' : low ? 'Estoque baixo' : 'Ativo';
@@ -74,8 +90,8 @@ export function Products() {
                 <ProductImage product={p} className="h-11 w-11 shrink-0 rounded-xs" />
                 <span className="text-sm font-bold">{p.name}</span>
               </div>
-              <span className="text-[13.5px] text-text-2">{p.category}</span>
-              <span className="font-display text-sm font-bold">{formatBRL(p.price)}</span>
+              <span className="text-[13.5px] text-text-2">{p.category ?? '—'}</span>
+              <span className="font-display text-sm font-bold">{formatBRLCents(p.priceCents)}</span>
               <span className="text-sm">{p.stock}</span>
               <span>
                 <span className={`inline-block rounded-full px-[11px] py-[5px] text-[11.5px] font-bold ${statusClass}`}>

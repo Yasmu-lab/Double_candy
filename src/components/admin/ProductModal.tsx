@@ -4,11 +4,9 @@ import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { Switch } from '../ui/Switch';
 import { useAdminStore } from '../../store/adminStore';
+import { useCategoriesStore } from '../../store/categoriesStore';
 import { useProductsStore } from '../../store/productsStore';
 import { useUiStore } from '../../store/uiStore';
-import type { Product } from '../../types';
-
-const CATEGORY_OPTIONS: Product['category'][] = ['Balas', 'Chocolates', 'Pirulitos', 'Doces'];
 
 export function ProductModal() {
   const open = useAdminStore((s) => s.prodModalOpen);
@@ -17,21 +15,23 @@ export function ProductModal() {
   const products = useProductsStore((s) => s.products);
   const addProduct = useProductsStore((s) => s.addProduct);
   const updateProduct = useProductsStore((s) => s.updateProduct);
+  const categories = useCategoriesStore((s) => s.categories);
   const showToast = useUiStore((s) => s.showToast);
 
   const editing = editingId != null ? products.find((p) => p.id === editingId) : undefined;
 
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<Product['category']>('Chocolates');
+  const [categoryId, setCategoryId] = useState<string>('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [active, setActive] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setName(editing?.name ?? '');
-    setCategory(editing?.category ?? 'Chocolates');
-    setPrice(editing ? String(editing.price).replace('.', ',') : '');
+    setCategoryId(editing?.categoryId ?? categories[0]?.id ?? '');
+    setPrice(editing ? (editing.priceCents / 100).toFixed(2).replace('.', ',') : '');
     setStock(editing ? String(editing.stock) : '');
     setActive(editing?.active ?? true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -39,21 +39,29 @@ export function ProductModal() {
 
   if (!open) return null;
 
-  const canSave = name.trim().length > 1 && Number(price.replace(',', '.')) > 0;
+  const priceCents = Math.round(Number(price.replace(',', '.')) * 100);
+  const canSave = name.trim().length > 1 && priceCents > 0;
 
-  const handleSave = () => {
-    if (!canSave) return;
-    const input = {
-      name: name.trim(),
-      category,
-      price: Number(price.replace(',', '.')) || 0,
-      stock: Number(stock) || 0,
-      active,
-    };
-    if (editing) updateProduct(editing.id, input);
-    else addProduct(input);
-    closeProdModal();
-    showToast('Produto salvo com sucesso');
+  const handleSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      const input = {
+        name: name.trim(),
+        categoryId: categoryId || null,
+        priceCents,
+        stock: Number(stock) || 0,
+        active,
+      };
+      if (editing) await updateProduct(editing.id, input);
+      else await addProduct(input);
+      closeProdModal();
+      showToast('Produto salvo com sucesso');
+    } catch {
+      showToast('Não deu pra salvar. Tenta de novo.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -98,10 +106,10 @@ export function ProductModal() {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="mb-[7px] block text-[13px] font-semibold text-text-2">Categoria</label>
-              <Select value={category} onChange={(e) => setCategory(e.target.value as Product['category'])}>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
                   </option>
                 ))}
               </Select>
@@ -145,8 +153,8 @@ export function ProductModal() {
           <Button variant="outline" className="flex-1" onClick={closeProdModal}>
             Cancelar
           </Button>
-          <Button variant="primary" className="flex-[1.4]" disabled={!canSave} onClick={handleSave}>
-            Salvar produto
+          <Button variant="primary" className="flex-[1.4]" disabled={!canSave || saving} onClick={handleSave}>
+            {saving ? 'Salvando...' : 'Salvar produto'}
           </Button>
         </div>
       </div>

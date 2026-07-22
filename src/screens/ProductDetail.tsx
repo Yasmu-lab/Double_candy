@@ -1,12 +1,13 @@
-import { ArrowLeft, Heart, Minus, Plus, Star } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Heart, Minus, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { ProductImage } from '../components/ui/ProductImage';
-import { findProduct } from '../data/products';
-import { formatBRL } from '../lib/format';
+import { formatBRLCents } from '../lib/format';
+import { tintForId } from '../lib/tint';
 import { useCartStore } from '../store/cartStore';
+import { useProductsStore } from '../store/productsStore';
 import { useUiStore } from '../store/uiStore';
 
 export function ProductDetail() {
@@ -14,10 +15,24 @@ export function ProductDetail() {
   const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
   const showToast = useUiStore((s) => s.showToast);
+  const products = useProductsStore((s) => s.products);
+  const fetchProducts = useProductsStore((s) => s.fetchProducts);
+  const loading = useProductsStore((s) => s.loading);
+  const fetched = useProductsStore((s) => s.fetched);
   const [qty, setQty] = useState(1);
 
-  const product = findProduct(Number(id));
-  if (!product) return <Navigate to="/home" replace />;
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const product = products.find((p) => p.id === id);
+
+  if (!product) {
+    if (loading || !fetched) {
+      return <div className="flex min-h-dvh items-center justify-center bg-bg text-sm text-text-2">Carregando...</div>;
+    }
+    return <Navigate to="/home" replace />;
+  }
 
   const handleAdd = () => {
     addItem(product.id, qty);
@@ -27,7 +42,7 @@ export function ProductDetail() {
 
   return (
     <div className="min-h-dvh bg-bg pb-[128px]">
-      <div className="relative h-[300px] sm:h-[348px]" style={{ background: product.tint }}>
+      <div className="relative h-[300px] sm:h-[348px]" style={{ background: tintForId(product.id) }}>
         <ProductImage product={product} className="h-full w-full" />
         <div
           className="pointer-events-none absolute inset-0"
@@ -45,20 +60,16 @@ export function ProductDetail() {
       </div>
 
       <div className="relative -mt-[26px] mx-auto max-w-2xl px-6">
-        <div className="flex items-start justify-between gap-3.5">
-          <div>
+        <div>
+          {product.category && (
             <span className="inline-block rounded-full bg-card-2 px-[11px] py-[5px] text-[11px] font-bold text-purple">
               {product.category}
             </span>
-            <h1 className="mt-3 font-display text-[27px] font-bold tracking-[-0.5px]">{product.name}</h1>
-          </div>
-          <div className="mt-1 flex shrink-0 items-center gap-1.5 rounded-sm bg-card px-3 py-[7px]">
-            <Star size={15} strokeWidth={0} fill="#C6FF4D" />
-            <span className="text-sm font-bold">{product.rating}</span>
-          </div>
+          )}
+          <h1 className="mt-3 font-display text-[27px] font-bold tracking-[-0.5px]">{product.name}</h1>
         </div>
 
-        <p className="mt-4 text-[14.5px] leading-[1.6] text-text-2">{product.desc}</p>
+        {product.description && <p className="mt-4 text-[14.5px] leading-[1.6] text-text-2">{product.description}</p>}
 
         <div className="mt-5 flex gap-3">
           <div className="flex-1 rounded-md border border-white/5 bg-surface px-4 py-3.5">
@@ -96,10 +107,10 @@ export function ProductDetail() {
         <div className="mx-auto flex max-w-2xl items-center gap-3.5">
           <div>
             <div className="text-xs text-text-2">Total</div>
-            <div className="font-display text-2xl font-bold text-pink">{formatBRL(product.price * qty)}</div>
+            <div className="font-display text-2xl font-bold text-pink">{formatBRLCents(product.priceCents * qty)}</div>
           </div>
-          <Button ripple size="lg" fullWidth className="flex-1" onClick={handleAdd}>
-            Adicionar
+          <Button ripple size="lg" fullWidth className="flex-1" disabled={product.stock <= 0} onClick={handleAdd}>
+            {product.stock <= 0 ? 'Esgotado' : 'Adicionar'}
           </Button>
         </div>
       </div>

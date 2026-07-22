@@ -2,10 +2,19 @@ import type { ReactNode } from 'react';
 import type { OrderStatus } from '../../types';
 
 const statusClasses: Record<OrderStatus, string> = {
-  Entregue: 'bg-lime/[0.16] text-lime',
-  Preparando: 'bg-orange/[0.16] text-orange',
-  Reservado: 'bg-purple/[0.18] text-purple',
-  Cancelado: 'bg-red/[0.16] text-red',
+  delivered: 'bg-lime/[0.16] text-lime',
+  confirmed: 'bg-orange/[0.16] text-orange',
+  pending: 'bg-purple/[0.18] text-purple',
+  no_show: 'bg-red/[0.16] text-red',
+  cancelled: 'bg-red/[0.16] text-red',
+};
+
+const statusLabels: Record<OrderStatus, string> = {
+  delivered: 'Entregue',
+  confirmed: 'Preparando',
+  pending: 'Reservado',
+  no_show: 'Não retirado',
+  cancelled: 'Cancelado',
 };
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
@@ -16,7 +25,7 @@ export function StatusBadge({ status }: { status: OrderStatus }) {
         statusClasses[status],
       ].join(' ')}
     >
-      {status}
+      {statusLabels[status]}
     </span>
   );
 }

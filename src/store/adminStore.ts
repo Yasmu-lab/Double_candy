@@ -16,8 +16,8 @@ interface AdminState {
   setOpenOrderId: (id: string) => void;
 
   prodModalOpen: boolean;
-  editingProductId: number | null;
-  openProdModal: (productId?: number) => void;
+  editingProductId: string | null;
+  openProdModal: (productId?: string) => void;
   closeProdModal: () => void;
 }
 

@@ -1,13 +1,12 @@
 import { Check, Phone, Search } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBadge } from '../../components/ui/Badge';
-import { formatBRL } from '../../lib/format';
+import { api, type OrderDto } from '../../lib/api';
+import { formatBRLCents } from '../../lib/format';
 import { useAdminStore } from '../../store/adminStore';
-import { paymentLabel, useOrderStore } from '../../store/orderStore';
+import { paymentLabel } from '../../store/orderStore';
 
 export function Pickup() {
-  const orders = useOrderStore((s) => s.orders);
-  const setStatus = useOrderStore((s) => s.setStatus);
   const query = useAdminStore((s) => s.pickupQuery);
   const setQuery = useAdminStore((s) => s.setPickupQuery);
   const selId = useAdminStore((s) => s.pickupSelId);
@@ -15,27 +14,36 @@ export function Pickup() {
   const deliveredAnim = useAdminStore((s) => s.deliveredAnim);
   const triggerDeliveredAnim = useAdminStore((s) => s.triggerDeliveredAnim);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return orders;
-    const qDigits = q.replace(/\D/g, '');
-    return orders.filter(
-      (o) =>
-        o.client.toLowerCase().includes(q) ||
-        o.id.toLowerCase().includes(q) ||
-        (qDigits && o.phone.replace(/\D/g, '').includes(qDigits)),
-    );
-  }, [orders, query]);
+  const [results, setResults] = useState<OrderDto[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (results.length > 0 && !results.some((o) => o.id === selId)) setSelId(results[0].id);
-  }, [results, selId, setSelId]);
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(() => {
+      api
+        .searchPickup(query)
+        .then((data) => {
+          if (cancelled) return;
+          setResults(data);
+          setLoading(false);
+          if (data.length > 0 && !data.some((o) => o.id === selId)) setSelId(data[0].id);
+        })
+        .catch(() => !cancelled && setLoading(false));
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const selected = results.find((o) => o.id === selId) ?? results[0] ?? null;
 
-  const handleDeliver = () => {
+  const handleDeliver = async () => {
     if (!selected) return;
-    setStatus(selected.id, 'Entregue');
+    await api.setOrderStatus(selected.id, 'delivered');
+    setResults((prev) => prev.map((o) => (o.id === selected.id ? { ...o, status: 'delivered' } : o)));
     triggerDeliveredAnim();
   };
 
@@ -52,7 +60,7 @@ export function Pickup() {
           />
         </div>
         <div className="mb-2.5 pl-1 text-xs font-bold uppercase tracking-wide text-text-2">
-          {results.length} pedidos encontrados
+          {loading ? 'Buscando...' : `${results.length} pedidos encontrados`}
         </div>
         <div className="flex flex-col gap-2.5">
           {results.map((o) => (
@@ -65,18 +73,16 @@ export function Pickup() {
               ].join(' ')}
             >
               <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xs bg-card-2 font-display text-sm font-bold text-purple">
-                {o.initials}
+                {o.client.slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold">{o.client}</div>
-                <div className="mt-px text-xs text-text-2">
-                  {o.id} · {o.createdAt}
-                </div>
+                <div className="mt-px text-xs text-text-2">{o.displayId}</div>
               </div>
               <StatusBadge status={o.status} />
             </div>
           ))}
-          {results.length === 0 && (
+          {!loading && results.length === 0 && (
             <div className="rounded-xl border border-white/[0.06] bg-surface px-5 py-10 text-center text-sm text-text-2">
               Nada encontrado.
             </div>
@@ -89,13 +95,13 @@ export function Pickup() {
           <div className="mb-[22px] flex items-center justify-between">
             <div className="flex items-center gap-3.5">
               <div className="flex h-[54px] w-[54px] items-center justify-center rounded-md bg-gradient-to-br from-purple to-purple-dark font-display text-lg font-bold">
-                {selected.initials}
+                {selected.client.slice(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="font-display text-xl font-bold">{selected.client}</div>
                 <div className="mt-[3px] flex items-center gap-1.5 text-[13.5px] text-text-2">
                   <Phone size={14} strokeWidth={2} />
-                  {selected.phone} · {selected.id}
+                  {selected.phone} · {selected.displayId}
                 </div>
               </div>
             </div>
@@ -112,7 +118,7 @@ export function Pickup() {
                   </span>
                   {li.name}
                 </span>
-                <span className="text-sm font-bold">{formatBRL(li.price * li.qty)}</span>
+                <span className="text-sm font-bold">{formatBRLCents(li.priceCents * li.qty)}</span>
               </div>
             ))}
           </div>
@@ -120,15 +126,15 @@ export function Pickup() {
           <div className="mb-5 flex gap-3">
             <div className="flex-1 rounded-md bg-card px-[18px] py-[15px]">
               <div className="text-xs text-text-2">Pagamento</div>
-              <div className="mt-0.5 font-display text-base font-bold">{paymentLabel(selected.payment)}</div>
+              <div className="mt-0.5 font-display text-base font-bold">{paymentLabel(selected.paymentMethod)}</div>
             </div>
             <div className="flex-1 rounded-md bg-card px-[18px] py-[15px]">
               <div className="text-xs text-text-2">Valor total</div>
-              <div className="mt-0.5 font-display text-base font-bold text-pink">{formatBRL(selected.total)}</div>
+              <div className="mt-0.5 font-display text-base font-bold text-pink">{formatBRLCents(selected.totalCents)}</div>
             </div>
           </div>
 
-          {selected.status === 'Entregue' ? (
+          {selected.status === 'delivered' ? (
             <div className="flex h-[68px] items-center justify-center gap-2.5 rounded-md border border-lime/30 bg-lime/[0.12] font-display text-[17px] font-bold text-lime">
               <Check size={24} strokeWidth={2.6} />
               Pedido entregue

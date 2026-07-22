@@ -1,8 +1,10 @@
-import { Banknote, Check, CreditCard, Diamond, Minus, Pencil, Plus, ShoppingBag, X } from 'lucide-react';
+import { Banknote, Check, Diamond, Minus, Pencil, Plus, ShoppingBag, X } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIsDesktop } from '../../lib/useMediaQuery';
-import { formatBRL } from '../../lib/format';
-import { useCartLines, useCartStore, useCartSubtotal } from '../../store/cartStore';
+import { formatBRLCents } from '../../lib/format';
+import { ApiError } from '../../lib/api';
+import { useCartLines, useCartStore, useCartSubtotalCents } from '../../store/cartStore';
 import { useOrderStore } from '../../store/orderStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUiStore } from '../../store/uiStore';
@@ -12,8 +14,7 @@ import { OrderSummary } from './OrderSummary';
 
 const PAYMENT_OPTIONS: { key: PaymentMethod; label: string; icon: typeof Diamond; tint: string; iconColor: string }[] = [
   { key: 'pix', label: 'Pix', icon: Diamond, tint: 'bg-lime/[0.16]', iconColor: 'text-lime' },
-  { key: 'dinheiro', label: 'Dinheiro', icon: Banknote, tint: 'bg-orange/[0.16]', iconColor: 'text-orange' },
-  { key: 'cartao', label: 'Cartão', icon: CreditCard, tint: 'bg-purple/[0.18]', iconColor: 'text-purple' },
+  { key: 'cash', label: 'Dinheiro', icon: Banknote, tint: 'bg-orange/[0.16]', iconColor: 'text-orange' },
 ];
 
 export function CartOverlay() {
@@ -23,9 +24,10 @@ export function CartOverlay() {
   const closeCart = useUiStore((s) => s.closeCart);
   const deskConfirmed = useUiStore((s) => s.deskConfirmed);
   const setDeskConfirmed = useUiStore((s) => s.setDeskConfirmed);
+  const showToast = useUiStore((s) => s.showToast);
 
   const lines = useCartLines();
-  const subtotal = useCartSubtotal();
+  const subtotalCents = useCartSubtotalCents();
   const payment = useCartStore((s) => s.payment);
   const setPayment = useCartStore((s) => s.setPayment);
   const note = useCartStore((s) => s.note);
@@ -38,19 +40,29 @@ export function CartOverlay() {
   const lastOrder = useOrderStore((s) => s.lastOrder);
   const name = useAuthStore((s) => s.name);
   const phone = useAuthStore((s) => s.phone);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!cartOpen) return null;
 
   const hasCart = lines.length > 0;
 
-  const handleConfirm = () => {
-    placeOrder(lines, subtotal, payment, note, { name, phone });
-    clear();
-    if (isDesktop) {
-      setDeskConfirmed(true);
-    } else {
-      closeCart();
-      navigate('/confirmation');
+  const handleConfirm = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await placeOrder(lines, payment, note, { name, phone });
+      clear();
+      if (isDesktop) {
+        setDeskConfirmed(true);
+      } else {
+        closeCart();
+        navigate('/confirmation');
+      }
+    } catch (e) {
+      const msg = e instanceof ApiError && e.code === 'OUT_OF_STOCK' ? 'Um dos itens acabou de esgotar.' : 'Não deu pra confirmar. Tenta de novo.';
+      showToast(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -110,7 +122,7 @@ export function CartOverlay() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-bold">{product.name}</div>
                         <div className="mt-[3px] font-display text-sm font-bold text-pink">
-                          {formatBRL(product.price)}
+                          {formatBRLCents(product.priceCents)}
                         </div>
                       </div>
                       <div className="flex items-center gap-2.5 rounded-xs bg-bg p-1.5">
@@ -176,7 +188,7 @@ export function CartOverlay() {
                 <div className="mt-[18px] rounded-md bg-bg p-4">
                   <div className="mb-2 flex justify-between text-[13.5px] text-text-2">
                     <span>Subtotal</span>
-                    <span>{formatBRL(subtotal)}</span>
+                    <span>{formatBRLCents(subtotalCents)}</span>
                   </div>
                   <div className="mb-3 flex justify-between text-[13.5px] text-text-2">
                     <span>Retirada</span>
@@ -184,15 +196,16 @@ export function CartOverlay() {
                   </div>
                   <div className="flex items-center justify-between border-t border-white/[0.08] pt-3">
                     <span className="text-[15px] font-bold">Total</span>
-                    <span className="font-display text-[22px] font-bold text-pink">{formatBRL(subtotal)}</span>
+                    <span className="font-display text-[22px] font-bold text-pink">{formatBRLCents(subtotalCents)}</span>
                   </div>
                 </div>
 
                 <button
                   onClick={handleConfirm}
-                  className="relative mt-4 flex h-[58px] w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-md border-none bg-gradient-to-br from-pink to-pink-dark font-display text-base font-semibold text-text shadow-[0_14px_30px_-10px_rgba(255,79,160,0.65)] transition-transform active:scale-[0.98]"
+                  disabled={submitting}
+                  className="relative mt-4 flex h-[58px] w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-md border-none bg-gradient-to-br from-pink to-pink-dark font-display text-base font-semibold text-text shadow-[0_14px_30px_-10px_rgba(255,79,160,0.65)] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Confirmar reserva
+                  {submitting ? 'Confirmando...' : 'Confirmar reserva'}
                 </button>
               </>
             ) : (

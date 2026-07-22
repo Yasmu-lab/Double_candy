@@ -1,53 +1,48 @@
-export type CategoryName =
-  | 'Todos'
-  | 'Balas'
-  | 'Chocolates'
-  | 'Pirulitos'
-  | 'Doces'
-  | 'Promoções';
-
-export interface Product {
-  id: number;
+export interface Category {
+  id: string;
   name: string;
-  category: Exclude<CategoryName, 'Todos' | 'Promoções'>;
-  price: number;
-  stock: number;
-  rating: number;
-  tint: string;
-  image?: string;
-  promo: boolean;
-  best: boolean;
-  desc: string;
+  sortOrder: number;
 }
 
-export type PaymentMethod = 'pix' | 'dinheiro' | 'cartao';
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  imageUrl: string | null;
+  active: boolean;
+  categoryId: string | null;
+  category: string | null;
+  stock: number;
+}
+
+export type PaymentMethod = 'pix' | 'cash';
 
 export interface CartLine {
   product: Product;
   qty: number;
 }
 
-export type OrderStatus = 'Reservado' | 'Preparando' | 'Entregue' | 'Cancelado';
+export type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled';
 
 export interface OrderLine {
-  productId: number;
+  productId: string;
   name: string;
+  priceCents: number;
   qty: number;
-  price: number;
 }
 
 export interface Order {
   id: string;
+  displayId: string;
+  orderNumber: number;
+  status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  totalCents: number;
+  note: string | null;
+  pickupWindowStart: string | null;
   createdAt: string;
-  pickupLabel: string;
   client: string;
   phone: string;
-  initials: string;
   lines: OrderLine[];
-  total: number;
-  payment: PaymentMethod;
-  note?: string;
-  status: OrderStatus;
-  /** Placed by the logged-in client in this session (vs. seeded admin demo data). */
-  isMine: boolean;
 }

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useOrderStore } from '../../store/orderStore';
 
 const NAV_ITEMS = [
@@ -44,7 +44,12 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const [title, subtitle] = TITLES[location.pathname] ?? ['', ''];
   const orders = useOrderStore((s) => s.orders);
-  const pendingCount = useMemo(() => orders.filter((o) => o.status === 'Reservado').length, [orders]);
+  const fetchAll = useOrderStore((s) => s.fetchAll);
+  const pendingCount = useMemo(() => orders.filter((o) => o.status === 'pending').length, [orders]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 py-6 lg:px-8 lg:py-7">

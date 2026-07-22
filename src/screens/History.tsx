@@ -1,22 +1,30 @@
 import { ShoppingBag } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect } from 'react';
 import { BottomNav } from '../components/layout/BottomNav';
 import { StatusBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
-import { formatBRL } from '../lib/format';
+import { formatBRLCents, formatRelativeDate } from '../lib/format';
+import { useAuthStore } from '../store/authStore';
 import { paymentLabel, useOrderStore } from '../store/orderStore';
 import type { OrderStatus } from '../types';
 
 const statusIconBg: Record<OrderStatus, string> = {
-  Entregue: 'linear-gradient(135deg,#C6FF4D,#8fbf20)',
-  Cancelado: 'linear-gradient(135deg,#FF5C6C,#E63B8C)',
-  Preparando: 'linear-gradient(135deg,#FFA347,#e6842a)',
-  Reservado: 'linear-gradient(135deg,#9B6BFF,#6b3fd6)',
+  delivered: 'linear-gradient(135deg,#C6FF4D,#8fbf20)',
+  cancelled: 'linear-gradient(135deg,#FF5C6C,#E63B8C)',
+  no_show: 'linear-gradient(135deg,#FF5C6C,#E63B8C)',
+  confirmed: 'linear-gradient(135deg,#FFA347,#e6842a)',
+  pending: 'linear-gradient(135deg,#9B6BFF,#6b3fd6)',
 };
 
 export function History() {
-  const allOrders = useOrderStore((s) => s.orders);
-  const orders = useMemo(() => allOrders.filter((o) => o.isMine), [allOrders]);
+  const phone = useAuthStore((s) => s.phone);
+  const orders = useOrderStore((s) => s.orders);
+  const loading = useOrderStore((s) => s.loading);
+  const fetchMine = useOrderStore((s) => s.fetchMine);
+
+  useEffect(() => {
+    if (phone) fetchMine(phone);
+  }, [phone, fetchMine]);
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pt-10">
@@ -24,7 +32,9 @@ export function History() {
         <h1 className="font-display text-[26px] font-bold tracking-[-0.5px]">Meus pedidos</h1>
         <p className="mb-5 mt-1 text-sm text-text-2">Acompanhe tudo o que você reservou.</p>
 
-        {orders.length === 0 ? (
+        {loading && orders.length === 0 ? (
+          <div className="py-10 text-center text-sm text-text-2">Carregando...</div>
+        ) : orders.length === 0 ? (
           <EmptyState
             icon={<ShoppingBag size={44} strokeWidth={1.8} />}
             title="Nada por aqui ainda"
@@ -45,17 +55,17 @@ export function History() {
                     <ShoppingBag size={22} strokeWidth={2} className="text-text" />
                   </div>
                   <div>
-                    <div className="font-display text-[15px] font-bold">{o.id}</div>
+                    <div className="font-display text-[15px] font-bold">{o.displayId}</div>
                     <div className="mt-0.5 text-xs text-text-2">
-                      {o.createdAt} · {o.lines.reduce((s, l) => s + l.qty, 0)} itens
+                      {formatRelativeDate(o.createdAt)} · {o.lines.reduce((s, l) => s + l.qty, 0)} itens
                     </div>
                   </div>
                 </div>
                 <StatusBadge status={o.status} />
               </div>
               <div className="mt-3.5 flex items-center justify-between border-t border-white/[0.06] pt-3.5">
-                <span className="text-[12.5px] text-text-2">{paymentLabel(o.payment)}</span>
-                <span className="font-display text-[17px] font-bold text-pink">{formatBRL(o.total)}</span>
+                <span className="text-[12.5px] text-text-2">{paymentLabel(o.paymentMethod)}</span>
+                <span className="font-display text-[17px] font-bold text-pink">{formatBRLCents(o.totalCents)}</span>
               </div>
             </div>
           ))
