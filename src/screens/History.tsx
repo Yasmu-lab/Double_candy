@@ -1,4 +1,5 @@
 import { ShoppingBag } from 'lucide-react';
+import { useMemo } from 'react';
 import { BottomNav } from '../components/layout/BottomNav';
 import { StatusBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -14,7 +15,8 @@ const statusIconBg: Record<OrderStatus, string> = {
 };
 
 export function History() {
-  const orders = useOrderStore((s) => s.orders);
+  const allOrders = useOrderStore((s) => s.orders);
+  const orders = useMemo(() => allOrders.filter((o) => o.isMine), [allOrders]);
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pt-10">

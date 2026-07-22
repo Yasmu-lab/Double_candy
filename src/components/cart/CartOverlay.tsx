@@ -4,6 +4,7 @@ import { useIsDesktop } from '../../lib/useMediaQuery';
 import { formatBRL } from '../../lib/format';
 import { useCartLines, useCartStore, useCartSubtotal } from '../../store/cartStore';
 import { useOrderStore } from '../../store/orderStore';
+import { useAuthStore } from '../../store/authStore';
 import { useUiStore } from '../../store/uiStore';
 import type { PaymentMethod } from '../../types';
 import { ProductImage } from '../ui/ProductImage';
@@ -35,13 +36,15 @@ export function CartOverlay() {
 
   const placeOrder = useOrderStore((s) => s.placeOrder);
   const lastOrder = useOrderStore((s) => s.lastOrder);
+  const name = useAuthStore((s) => s.name);
+  const phone = useAuthStore((s) => s.phone);
 
   if (!cartOpen) return null;
 
   const hasCart = lines.length > 0;
 
   const handleConfirm = () => {
-    placeOrder(lines, subtotal, payment, note);
+    placeOrder(lines, subtotal, payment, note, { name, phone });
     clear();
     if (isDesktop) {
       setDeskConfirmed(true);

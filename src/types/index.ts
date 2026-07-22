@@ -40,9 +40,14 @@ export interface Order {
   id: string;
   createdAt: string;
   pickupLabel: string;
+  client: string;
+  phone: string;
+  initials: string;
   lines: OrderLine[];
   total: number;
   payment: PaymentMethod;
   note?: string;
   status: OrderStatus;
+  /** Placed by the logged-in client in this session (vs. seeded admin demo data). */
+  isMine: boolean;
 }

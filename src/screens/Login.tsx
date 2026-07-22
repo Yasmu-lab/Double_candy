@@ -1,6 +1,6 @@
-import { ArrowRight, Lollipop, Phone, User } from 'lucide-react';
+import { ArrowRight, LayoutDashboard, Lollipop, Phone, User } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuthStore } from '../store/authStore';
@@ -54,6 +54,17 @@ export function Login() {
         <p className="mt-[22px] text-center text-[12.5px] text-text-3">
           Ao entrar você concorda com os termos da cantina.
         </p>
+
+        {canSubmit && (
+          <Link
+            to="/admin/dashboard"
+            onClick={() => login(name.trim(), phone.trim())}
+            className="mt-6 flex items-center justify-center gap-2 text-[13px] font-semibold text-text-2 hover:text-purple"
+          >
+            <LayoutDashboard size={15} strokeWidth={2} />
+            Acessar painel admin
+          </Link>
+        )}
       </form>
     </div>
   );

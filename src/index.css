@@ -46,6 +46,9 @@
   --animate-dc-spin: dcSpin 0.8s linear infinite;
   --animate-dc-toast-in: dcToastIn 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
   --animate-dc-shimmer: dcShimmer 1.6s ease infinite;
+  --animate-dc-draw: dcDraw 1.4s ease forwards;
+  --animate-dc-bar-x: dcBarX 1s ease forwards;
+  --animate-dc-bar-y: dcBarY 1s ease forwards;
 
   @keyframes dcFadeUp {
     from {
@@ -138,6 +141,27 @@
     to {
       transform: scale(2.2);
       opacity: 0;
+    }
+  }
+  @keyframes dcDraw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes dcBarX {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  @keyframes dcBarY {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
     }
   }
 }
