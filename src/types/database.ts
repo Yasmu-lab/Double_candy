@@ -229,6 +229,44 @@ export type Database = {
           },
         ];
       };
+      password_reset_requests: {
+        Row: {
+          created_at: string;
+          id: string;
+          phone: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: string;
+          store_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          phone: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: string;
+          store_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          phone?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: string;
+          store_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'password_reset_requests_store_id_fkey';
+            columns: ['store_id'];
+            isOneToOne: false;
+            referencedRelation: 'stores';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       otp_codes: {
         Row: {
           attempts: number;

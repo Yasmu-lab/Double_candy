@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Bell,
   ClipboardCheck,
+  KeyRound,
   LayoutDashboard,
   LayoutGrid,
   LogOut,
@@ -16,6 +17,7 @@ import {
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import { api } from '../../lib/api';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
@@ -32,6 +34,7 @@ const NAV_ITEMS = [
   { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
   { to: '/admin/prepare', label: 'Preparar amanhã', icon: ClipboardCheck },
   { to: '/admin/pickup', label: 'Retirada', icon: Truck },
+  { to: '/admin/password-resets', label: 'Recuperação de senha', icon: KeyRound, badgeKey: 'passwordResets' as const },
   { to: '/admin/settings', label: 'Configurações', icon: Settings },
 ];
 
@@ -44,6 +47,7 @@ const TITLES: Record<string, [string, string]> = {
   '/admin/reports': ['Relatórios', 'Métricas e desempenho'],
   '/admin/prepare': ['Preparar para amanhã', 'Tudo que precisa ser separado para a retirada'],
   '/admin/pickup': ['Retirada', 'Localize o pedido e entregue na hora'],
+  '/admin/password-resets': ['Recuperação de senha', 'Ajude clientes que esqueceram a senha'],
   '/admin/settings': ['Configurações', 'Preferências da loja'],
 };
 
@@ -71,11 +75,16 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
     () => products.filter((p) => p.active && p.stock <= LOW_STOCK_THRESHOLD),
     [products],
   );
+  const [pendingResets, setPendingResets] = useState<{ id: string; phone: string; customerName: string | null }[]>([]);
 
   useEffect(() => {
     fetchAll();
     fetchProducts();
-  }, [fetchAll, fetchProducts]);
+    api
+      .getPasswordResetRequests()
+      .then((reqs) => setPendingResets(reqs.filter((r) => r.status === 'pending')))
+      .catch(() => setPendingResets([]));
+  }, [fetchAll, fetchProducts, location.pathname]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -124,7 +133,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
     navigate('/admin/clients');
   };
 
-  const hasNotifications = pendingOrders.length > 0 || lowStockProducts.length > 0;
+  const hasNotifications = pendingOrders.length > 0 || lowStockProducts.length > 0 || pendingResets.length > 0;
 
   return (
     <div className="dc-app-bg min-h-dvh px-5 py-6 lg:px-8 lg:py-7">
@@ -143,7 +152,10 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
           <nav className="flex flex-col gap-[3px]">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const badge = item.badgeKey === 'pending' && pendingOrders.length > 0 ? pendingOrders.length : null;
+              const badge =
+                (item.badgeKey === 'pending' && pendingOrders.length > 0 && pendingOrders.length) ||
+                (item.badgeKey === 'passwordResets' && pendingResets.length > 0 && pendingResets.length) ||
+                null;
               return (
                 <NavLink
                   key={item.to}
@@ -308,7 +320,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
                       </div>
                     )}
                     {lowStockProducts.length > 0 && (
-                      <div>
+                      <div className="mb-1">
                         <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-2">
                           Estoque baixo ({lowStockProducts.length})
                         </div>
@@ -323,6 +335,26 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
                           >
                             <AlertTriangle size={15} strokeWidth={2} className="shrink-0 text-red" />
                             {p.name} · {p.stock} un.
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {pendingResets.length > 0 && (
+                      <div>
+                        <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-text-2">
+                          Recuperação de senha ({pendingResets.length})
+                        </div>
+                        {pendingResets.slice(0, 4).map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => {
+                              setNotifOpen(false);
+                              navigate('/admin/password-resets');
+                            }}
+                            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xs px-2.5 py-2 text-left text-[13.5px] font-semibold text-text transition-colors hover:bg-card-2"
+                          >
+                            <KeyRound size={15} strokeWidth={2} className="shrink-0 text-purple" />
+                            {r.customerName ?? r.phone}
                           </button>
                         ))}
                       </div>
