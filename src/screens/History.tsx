@@ -15,6 +15,9 @@ const statusIconBg: Record<OrderStatus, string> = {
   cancelled: 'linear-gradient(135deg,#FF5C6C,#E63B8C)',
   no_show: 'linear-gradient(135deg,#FF5C6C,#E63B8C)',
   confirmed: 'linear-gradient(135deg,#FFA347,#e6842a)',
+  preparing: 'linear-gradient(135deg,#FFA347,#e6842a)',
+  separated: 'linear-gradient(135deg,#FF4FA0,#E63B8C)',
+  ready_for_pickup: 'linear-gradient(135deg,#C6FF4D,#8fbf20)',
   pending: 'linear-gradient(135deg,#9B6BFF,#6b3fd6)',
 };
 

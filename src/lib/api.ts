@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import type { OrderStatus } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -93,11 +94,10 @@ export const api = {
   createOrder: (input: { paymentMethod: 'pix' | 'cash'; note?: string; items: { productId: string; qty: number }[] }) =>
     request<OrderDto>('/orders', { method: 'POST', body: JSON.stringify(input) }),
 
-  setOrderStatus: (
-    id: string,
-    status: 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled',
-    opts?: { cancelledBy?: string; reason?: string },
-  ) => request<{ ok: true }>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, ...opts }) }),
+  setOrderStatus: (id: string, status: OrderStatus, opts?: { cancelledBy?: string; reason?: string }) =>
+    request<{ ok: true }>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, ...opts }) }),
+
+  getOrderHistory: (id: string) => request<OrderStatusHistoryDto[]>(`/orders/${id}/history`),
 
   searchPickup: (q: string) => request<OrderDto[]>(`/pickup?q=${encodeURIComponent(q)}`),
 
@@ -230,13 +230,26 @@ export interface PasswordResetRequestDto {
 export type NotificationType =
   | 'order_received'
   | 'order_confirmed'
+  | 'order_preparing'
+  | 'order_separated'
+  | 'order_ready'
   | 'order_delivered'
+  | 'order_no_show'
   | 'order_cancelled'
   | 'new_order'
   | 'out_of_stock'
   | 'low_stock'
   | 'new_customer'
   | 'new_product';
+
+export interface OrderStatusHistoryDto {
+  id: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  changedByType: 'customer' | 'admin' | 'system';
+  changedByName: string;
+  createdAt: string;
+}
 
 export interface NotificationDto {
   id: string;
@@ -253,7 +266,7 @@ export interface OrderDto {
   id: string;
   orderNumber: number;
   displayId: string;
-  status: 'pending' | 'confirmed' | 'delivered' | 'no_show' | 'cancelled';
+  status: OrderStatus;
   paymentMethod: 'pix' | 'cash';
   totalCents: number;
   note: string | null;
