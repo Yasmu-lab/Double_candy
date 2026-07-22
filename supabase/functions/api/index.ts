@@ -111,6 +111,18 @@ app.get('/store', async (c) => {
   });
 });
 
+app.put('/store', async (c) => {
+  const body = await c.req.json();
+  const patch: Record<string, unknown> = {};
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.pickupLocation !== undefined) patch.pickup_location = body.pickupLocation;
+  if (body.pickupCutoffMinutes !== undefined) patch.pickup_cutoff_minutes = body.pickupCutoffMinutes;
+  if (!Object.keys(patch).length) return c.json({ ok: true });
+  const { error } = await sb().from('stores').update(patch).eq('id', STORE_ID);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
 // ---- categories ----
 app.get('/categories', async (c) => {
   const { data, error } = await sb()
@@ -120,6 +132,50 @@ app.get('/categories', async (c) => {
     .order('sort_order');
   if (error) return err(c, error);
   return c.json(data.map((x) => ({ id: x.id, name: x.name, sortOrder: x.sort_order })));
+});
+
+app.post('/categories', async (c) => {
+  const body = await c.req.json();
+  if (typeof body.name !== 'string' || !body.name.trim()) {
+    return c.json({ error: 'INVALID_INPUT' }, 400);
+  }
+  const client = sb();
+  const { data: last } = await client
+    .from('categories')
+    .select('sort_order')
+    .eq('store_id', STORE_ID)
+    .order('sort_order', { ascending: false })
+    .limit(1);
+  const nextSort = (last?.[0]?.sort_order ?? -1) + 1;
+  const { data, error } = await client
+    .from('categories')
+    .insert({ store_id: STORE_ID, name: body.name.trim(), sort_order: body.sortOrder ?? nextSort })
+    .select()
+    .single();
+  if (error) return err(c, error);
+  return c.json({ id: data.id }, 201);
+});
+
+app.put('/categories/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json();
+  const patch: Record<string, unknown> = {};
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.sortOrder !== undefined) patch.sort_order = body.sortOrder;
+  if (!Object.keys(patch).length) return c.json({ ok: true });
+  const { error } = await sb().from('categories').update(patch).eq('id', id).eq('store_id', STORE_ID);
+  if (error) return err(c, error);
+  return c.json({ ok: true });
+});
+
+app.delete('/categories/:id', async (c) => {
+  const id = c.req.param('id');
+  const { error } = await sb().from('categories').delete().eq('id', id).eq('store_id', STORE_ID);
+  if (error) {
+    if (error.code === '23503') return c.json({ error: 'CATEGORY_IN_USE' }, 409);
+    return err(c, error);
+  }
+  return c.json({ ok: true });
 });
 
 // ---- products ----

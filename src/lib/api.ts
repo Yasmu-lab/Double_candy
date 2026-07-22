@@ -32,7 +32,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getStore: () => request<{ id: string; name: string; pickupLocation: string; timezone: string; pickupCutoffMinutes: number }>('/store'),
 
+  updateStore: (input: Partial<{ name: string; pickupLocation: string; pickupCutoffMinutes: number }>) =>
+    request<{ ok: true }>('/store', { method: 'PUT', body: JSON.stringify(input) }),
+
   getCategories: () => request<{ id: string; name: string; sortOrder: number }[]>('/categories'),
+
+  createCategory: (input: { name: string; sortOrder?: number }) =>
+    request<{ id: string }>('/categories', { method: 'POST', body: JSON.stringify(input) }),
+
+  updateCategory: (id: string, input: Partial<{ name: string; sortOrder: number }>) =>
+    request<{ ok: true }>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+
+  deleteCategory: (id: string) => request<{ ok: true }>(`/categories/${id}`, { method: 'DELETE' }),
 
   getProducts: () =>
     request<
