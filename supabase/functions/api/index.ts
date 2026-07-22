@@ -1107,12 +1107,14 @@ app.get('/clients', async (c) => {
 app.get('/prepare', async (c) => {
   const auth = await requireAdmin(c);
   if (auth instanceof Response) return auth;
-  const { data: orders, error } = await sb()
+  const { data: allOrders, error } = await sb()
     .from('orders')
-    .select('id,order_items(product_id,product_name_snapshot,quantity,unit_price_cents)')
+    .select('id,pickup_window_start,order_items(product_id,product_name_snapshot,quantity,unit_price_cents)')
     .eq('store_id', STORE_ID)
     .in('status', ['pending', 'confirmed', 'preparing']);
   if (error) return err(c, error);
+  const tomorrowR = localDayRangeUtc(1);
+  const orders = allOrders.filter((o) => within(o.pickup_window_start, tomorrowR));
   const byProduct = new Map<string, { productId: string; name: string; qty: number; orderIds: Set<string>; unitCents: number }>();
   for (const o of orders) {
     for (const li of o.order_items) {

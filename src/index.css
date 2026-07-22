@@ -213,3 +213,13 @@ body {
     radial-gradient(1100px 800px at 108% 8%, #3a1740 0%, rgba(58, 23, 64, 0) 50%),
     var(--color-bg-deep);
 }
+
+@media print {
+  body,
+  .dc-app-bg {
+    background: #fff !important;
+  }
+  * {
+    color: #111 !important;
+  }
+}

@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { to: '/admin/orders', label: 'Pedidos', icon: ShoppingBag, badgeKey: 'pending' as const },
   { to: '/admin/clients', label: 'Clientes', icon: Users },
   { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
-  { to: '/admin/prepare', label: 'Preparar amanhã', icon: ClipboardCheck },
+  { to: '/admin/prepare', label: 'Preparar para amanhã', icon: ClipboardCheck },
   { to: '/admin/pickup', label: 'Retirada', icon: Truck },
   { to: '/admin/password-resets', label: 'Recuperação de senha', icon: KeyRound, badgeKey: 'passwordResets' as const },
   { to: '/admin/settings', label: 'Configurações', icon: Settings },
@@ -128,7 +128,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
   return (
     <div className="dc-app-bg min-h-dvh px-5 py-6 lg:px-8 lg:py-7">
       <div className="mx-auto flex max-w-[1400px] items-start gap-5">
-        <aside className="sticky top-6 hidden w-[250px] shrink-0 rounded-xl border border-white/[0.06] bg-surface/60 p-4 backdrop-blur-lg lg:block">
+        <aside className="sticky top-6 hidden w-[250px] shrink-0 rounded-xl border border-white/[0.06] bg-surface/60 p-4 backdrop-blur-lg print:hidden lg:block">
           <Link to="/home" className="flex items-center gap-3 px-2 pb-5 pt-1.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-gradient-to-br from-pink to-purple">
               <ShoppingBag size={20} strokeWidth={2.2} className="text-text" />
@@ -197,7 +197,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
               <h1 className="font-display text-2xl font-bold tracking-[-0.5px] lg:text-[26px]">{title}</h1>
               <p className="mt-1 text-sm text-text-2">{subtitle}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 print:hidden">
               <div
                 onFocus={() => setSearchOpen(true)}
                 onBlur={(e) => {
