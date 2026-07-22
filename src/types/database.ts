@@ -54,6 +54,55 @@ export type Database = {
           },
         ];
       };
+      cart_items: {
+        Row: {
+          customer_id: string;
+          id: string;
+          product_id: string;
+          quantity: number;
+          store_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          customer_id: string;
+          id?: string;
+          product_id: string;
+          quantity: number;
+          store_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          customer_id?: string;
+          id?: string;
+          product_id?: string;
+          quantity?: number;
+          store_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cart_items_customer_id_fkey';
+            columns: ['customer_id'];
+            isOneToOne: false;
+            referencedRelation: 'customers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cart_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cart_items_store_id_fkey';
+            columns: ['store_id'];
+            isOneToOne: false;
+            referencedRelation: 'stores';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       categories: {
         Row: {
           id: string;
@@ -373,11 +422,13 @@ export type Database = {
       products: {
         Row: {
           category_id: string | null;
+          compare_at_price_cents: number | null;
           created_at: string;
           description: string | null;
           id: string;
           image_url: string | null;
           is_active: boolean;
+          is_featured: boolean;
           name: string;
           price_cents: number;
           sort_order: number;
@@ -385,11 +436,13 @@ export type Database = {
         };
         Insert: {
           category_id?: string | null;
+          compare_at_price_cents?: number | null;
           created_at?: string;
           description?: string | null;
           id?: string;
           image_url?: string | null;
           is_active?: boolean;
+          is_featured?: boolean;
           name: string;
           price_cents: number;
           sort_order?: number;
@@ -397,11 +450,13 @@ export type Database = {
         };
         Update: {
           category_id?: string | null;
+          compare_at_price_cents?: number | null;
           created_at?: string;
           description?: string | null;
           id?: string;
           image_url?: string | null;
           is_active?: boolean;
+          is_featured?: boolean;
           name?: string;
           price_cents?: number;
           sort_order?: number;

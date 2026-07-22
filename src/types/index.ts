@@ -9,11 +9,15 @@ export interface Product {
   name: string;
   description: string | null;
   priceCents: number;
+  compareAtPriceCents: number | null;
   imageUrl: string | null;
   active: boolean;
+  isFeatured: boolean;
   categoryId: string | null;
   category: string | null;
   stock: number;
+  createdAt: string;
+  unitsSold: number;
 }
 
 export type PaymentMethod = 'pix' | 'cash';

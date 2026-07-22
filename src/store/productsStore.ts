@@ -6,8 +6,10 @@ interface NewProductInput {
   name: string;
   categoryId: string | null;
   priceCents: number;
+  compareAtPriceCents?: number | null;
   stock: number;
   active: boolean;
+  isFeatured?: boolean;
 }
 
 interface ProductsState {
