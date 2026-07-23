@@ -1207,6 +1207,9 @@ app.get('/pickup', async (c) => {
     .from('orders')
     .select(ORDER_SELECT)
     .eq('store_id', STORE_ID)
+    // Cancelled orders were never going to be picked up, so they don't belong in a
+    // "find the order and deliver it" search — there's nothing to deliver.
+    .neq('status', 'cancelled')
     .order('created_at', { ascending: false });
   if (error) return err(c, error);
   const filtered = q
