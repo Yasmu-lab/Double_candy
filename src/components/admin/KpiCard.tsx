@@ -25,7 +25,7 @@ export function KpiCard({ icon, iconBg, value, label, trend, up, small, danger }
         </span>
         <span
           className={[
-            'whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold',
+            'min-w-0 rounded-full px-2.5 py-1 text-right text-xs font-bold leading-tight',
             up ? 'bg-lime/[0.12] text-lime' : 'bg-red/[0.12] text-red',
           ].join(' ')}
         >

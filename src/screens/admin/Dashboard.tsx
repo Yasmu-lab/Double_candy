@@ -222,8 +222,8 @@ export function Dashboard() {
           <div className="font-display text-[17px] font-bold">Resumo do período</div>
           <div className="mt-0.5 text-[13px] text-text-2">{data.periodLabel}</div>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+        <div className="min-w-0 flex flex-wrap items-center gap-2.5">
+          <div className="no-scrollbar min-w-0 flex gap-1.5 overflow-x-auto">
             {PERIOD_FILTERS.map((f) => (
               <Chip key={f.key} active={period === f.key} onClick={() => setPeriod(f.key)}>
                 {f.label}

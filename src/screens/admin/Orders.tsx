@@ -81,7 +81,7 @@ export function Orders() {
   return (
     <div className="animate-dc-fade-up grid grid-cols-1 items-start gap-4 xl:grid-cols-[1fr_380px]">
       <div>
-        <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
+        <div className="no-scrollbar mb-4 min-w-0 flex gap-2 overflow-x-auto">
           {FILTERS.map((f) => (
             <Chip key={f} active={f === filter} onClick={() => setFilter(f)}>
               {f}
