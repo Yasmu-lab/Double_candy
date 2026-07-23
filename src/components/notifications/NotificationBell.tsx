@@ -127,7 +127,7 @@ export function NotificationBell() {
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-bold">{n.title}</div>
                 <div className="mt-0.5 line-clamp-2 text-[12px] text-text-2">{n.message}</div>
-                <div className="mt-1 text-[11px] text-text-3">{formatRelativeDate(n.createdAt)}</div>
+                <div className="mt-1 text-[11px] text-text-2">{formatRelativeDate(n.createdAt)}</div>
               </div>
               <button
                 onClick={(e) => {
@@ -136,9 +136,9 @@ export function NotificationBell() {
                 }}
                 title="Excluir"
                 aria-label="Excluir notificação"
-                className="mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-xs text-text-3 opacity-0 outline-none transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-pink-light"
+                className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xs text-text-2 outline-none transition-colors hover:bg-red/10 hover:text-red focus-visible:ring-2 focus-visible:ring-pink-light"
               >
-                <Trash2 size={13} strokeWidth={2} />
+                <Trash2 size={14} strokeWidth={2} />
               </button>
             </div>
           ))}

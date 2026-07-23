@@ -28,9 +28,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   justLoggedIn: false,
 
   init: async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    let session;
+    try {
+      ({
+        data: { session },
+      } = await supabase.auth.getSession());
+    } catch {
+      set({ status: 'unauthenticated' });
+      return;
+    }
     if (!session) {
       set({ status: 'unauthenticated' });
     } else {

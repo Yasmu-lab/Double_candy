@@ -58,7 +58,7 @@ export function Pickup() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Nome, telefone ou nº do pedido..."
-            className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+            className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
           />
         </div>
         <div className="mb-2.5 pl-1 text-xs font-bold uppercase tracking-wide text-text-2">

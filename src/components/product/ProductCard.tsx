@@ -68,12 +68,14 @@ export function ProductCard({ product }: { product: Product }) {
         )}
       </div>
 
-      <div className="mt-[9px] text-sm font-bold lg:mt-[11px] lg:text-[15px]">{product.name}</div>
-      <div className="mt-0.5 text-[11.5px] text-text-2 lg:text-[12.5px]">{product.category ?? ''}</div>
+      <div className="line-clamp-2 mt-[9px] min-h-[2.75em] text-sm font-bold leading-snug lg:mt-[11px] lg:text-[15px]">
+        {product.name}
+      </div>
+      <div className="mt-0.5 truncate text-[11.5px] text-text-2 lg:text-[12.5px]">{product.category ?? ''}</div>
 
       <div className="mt-[9px] flex items-baseline gap-1.5 lg:mt-3">
         {onPromo && (
-          <span className="text-[11.5px] text-text-3 line-through">{formatBRLCents(product.compareAtPriceCents!)}</span>
+          <span className="text-[11.5px] text-text-2 line-through">{formatBRLCents(product.compareAtPriceCents!)}</span>
         )}
         <span className="font-display text-[15px] font-bold text-pink lg:text-[17px]">
           {formatBRLCents(product.priceCents)}
@@ -84,7 +86,7 @@ export function ProductCard({ product }: { product: Product }) {
         onClick={handleAdd}
         disabled={outOfStock}
         className={[
-          'relative mt-[9px] flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-xs border-none text-[12.5px] font-bold text-text transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 outline-none focus-visible:ring-2 focus-visible:ring-pink-light lg:mt-2.5 lg:h-11 lg:text-[13.5px]',
+          'relative mt-[9px] flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-xs border-none text-[12.5px] font-bold text-text transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 outline-none focus-visible:ring-2 focus-visible:ring-pink-light lg:mt-2.5 lg:text-[13.5px]',
           justAdded ? 'bg-lime text-bg-deep' : 'bg-card-2 hover:bg-pink',
         ].join(' ')}
       >

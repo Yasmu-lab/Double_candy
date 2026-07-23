@@ -123,7 +123,7 @@ export function ProductModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="dc-scroll animate-dc-scale-in max-h-[90vh] w-full max-w-[520px] overflow-y-auto rounded-xl border border-white/[0.08] bg-surface p-[26px] shadow-[0_40px_90px_-20px_rgba(0,0,0,0.7)]"
+        className="dc-scroll animate-dc-scale-in max-h-[90dvh] w-full max-w-[520px] overflow-y-auto rounded-xl border border-white/[0.08] bg-surface p-[26px] shadow-[0_40px_90px_-20px_rgba(0,0,0,0.7)]"
       >
         <div className="mb-[22px] flex items-center justify-between">
           <div>
@@ -181,7 +181,7 @@ export function ProductModal() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Brigadeiro gourmet"
-                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
               />
             </div>
           </div>
@@ -205,14 +205,14 @@ export function ProductModal() {
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="0,00"
                   inputMode="decimal"
-                  className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                  className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
                 />
               </div>
             </div>
           </div>
           <div>
             <label className="mb-[7px] block text-[13px] font-semibold text-text-2">
-              Preço original (de) <span className="font-normal text-text-3">— opcional, pra marcar promoção</span>
+              Preço original (de) <span className="font-normal text-text-2">— opcional, pra marcar promoção</span>
             </label>
             <div
               className={[
@@ -226,7 +226,7 @@ export function ProductModal() {
                 onChange={(e) => setCompareAtPrice(e.target.value)}
                 placeholder="Ex: 12,00"
                 inputMode="decimal"
-                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
               />
             </div>
             {compareAtPriceInvalid && (
@@ -241,7 +241,7 @@ export function ProductModal() {
                 onChange={(e) => setStock(e.target.value)}
                 placeholder="Quantidade disponível"
                 inputMode="numeric"
-                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
               />
             </div>
           </div>

@@ -180,7 +180,7 @@ export function Home() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar doce..."
-              className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+              className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
             />
           </div>
 
@@ -208,7 +208,7 @@ export function Home() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar doce..."
-            className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+            className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
           />
         </div>
 

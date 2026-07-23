@@ -51,7 +51,7 @@ function CategoryModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="dc-scroll animate-dc-scale-in max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-xl border border-white/[0.08] bg-surface p-[26px] shadow-[0_40px_90px_-20px_rgba(0,0,0,0.7)]"
+        className="dc-scroll animate-dc-scale-in max-h-[90dvh] w-full max-w-[420px] overflow-y-auto rounded-xl border border-white/[0.08] bg-surface p-[26px] shadow-[0_40px_90px_-20px_rgba(0,0,0,0.7)]"
       >
         <div className="mb-[22px] flex items-center justify-between">
           <div>
@@ -74,7 +74,7 @@ function CategoryModal({
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             placeholder="Ex: Bolos"
-            className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+            className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
           />
         </div>
 

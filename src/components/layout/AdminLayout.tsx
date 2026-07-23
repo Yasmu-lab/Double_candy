@@ -9,10 +9,12 @@ import {
   Search,
   Settings,
   ShoppingBag,
+  Store,
   Truck,
   Users,
   BarChart3,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -25,17 +27,34 @@ import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
 import { useProductsStore } from '../../store/productsStore';
 
-const NAV_ITEMS = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/products', label: 'Produtos', icon: Package },
-  { to: '/admin/categories', label: 'Categorias', icon: LayoutGrid },
-  { to: '/admin/orders', label: 'Pedidos', icon: ShoppingBag, badgeKey: 'pending' as const },
-  { to: '/admin/clients', label: 'Clientes', icon: Users },
-  { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
-  { to: '/admin/prepare', label: 'Preparar para amanhã', icon: ClipboardCheck },
-  { to: '/admin/pickup', label: 'Retirada', icon: Truck },
-  { to: '/admin/password-resets', label: 'Recuperação de senha', icon: KeyRound, badgeKey: 'passwordResets' as const },
-  { to: '/admin/settings', label: 'Configurações', icon: Settings },
+type NavItem = { to: string; label: string; icon: LucideIcon; badgeKey?: 'pending' | 'passwordResets' };
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Operação',
+    items: [
+      { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/admin/orders', label: 'Pedidos', icon: ShoppingBag, badgeKey: 'pending' as const },
+      { to: '/admin/prepare', label: 'Preparar para amanhã', icon: ClipboardCheck },
+      { to: '/admin/pickup', label: 'Retirada', icon: Truck },
+    ],
+  },
+  {
+    label: 'Catálogo',
+    items: [
+      { to: '/admin/products', label: 'Produtos', icon: Package },
+      { to: '/admin/categories', label: 'Categorias', icon: LayoutGrid },
+      { to: '/admin/clients', label: 'Clientes', icon: Users },
+    ],
+  },
+  {
+    label: 'Gestão',
+    items: [
+      { to: '/admin/reports', label: 'Relatórios', icon: BarChart3 },
+      { to: '/admin/password-resets', label: 'Recuperação de senha', icon: KeyRound, badgeKey: 'passwordResets' as const },
+      { to: '/admin/settings', label: 'Configurações', icon: Settings },
+    ],
+  },
 ];
 
 const TITLES: Record<string, [string, string]> = {
@@ -50,6 +69,14 @@ const TITLES: Record<string, [string, string]> = {
   '/admin/password-resets': ['Recuperação de senha', 'Ajude clientes que esqueceram a senha'],
   '/admin/settings': ['Configurações', 'Preferências da loja'],
 };
+
+const navItemClass = ({ isActive }: { isActive: boolean }) =>
+  [
+    'flex items-center gap-3 rounded-sm px-3.5 py-3 text-sm font-semibold transition-all duration-200',
+    isActive
+      ? 'bg-gradient-to-br from-pink/20 to-purple/15 text-text shadow-[inset_3px_0_0_#FF4FA0]'
+      : 'text-text-2 hover:text-text',
+  ].join(' ');
 
 function AdminNavList({
   pendingOrders,
@@ -66,57 +93,57 @@ function AdminNavList({
 }) {
   return (
     <>
-      <nav className="flex flex-col gap-[3px]">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const badge =
-            (item.badgeKey === 'pending' && pendingOrders > 0 && pendingOrders) ||
-            (item.badgeKey === 'passwordResets' && pendingResets > 0 && pendingResets) ||
-            null;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                [
-                  'flex items-center gap-3 rounded-sm px-3.5 py-3 text-sm font-semibold transition-all duration-200',
-                  isActive
-                    ? 'bg-gradient-to-br from-pink/20 to-purple/15 text-text shadow-[inset_3px_0_0_#FF4FA0]'
-                    : 'text-text-2 hover:text-text',
-                ].join(' ')
-              }
-            >
-              <Icon size={18} strokeWidth={2} />
-              {item.label}
-              {badge != null && (
-                <span className="ml-auto rounded-full bg-pink px-2 py-0.5 text-[11px] font-bold text-text">
-                  {badge}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
+      <div className="mb-4 flex items-center gap-2.5 rounded-md bg-card-2/60 px-3.5 py-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-card-2">
+          <Users size={16} strokeWidth={2} className="text-lime" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-bold">{customerName ?? 'Você'}</div>
+          <div className="text-[11px] text-text-2">Administradora</div>
+        </div>
+      </div>
 
-      <div className="mt-5 rounded-md border border-pink/20 bg-gradient-to-br from-pink/[0.15] to-purple/[0.15] p-3.5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-card-2">
-            <Users size={18} strokeWidth={2} className="text-lime" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-bold">{customerName ?? 'Você'}</div>
-            <div className="text-[11px] text-text-2">Administradora</div>
-          </div>
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label} className="mb-4 last:mb-0">
+          <div className="mb-1.5 px-3.5 text-[11px] font-bold uppercase tracking-wide text-text-2">{group.label}</div>
+          <nav className="flex flex-col gap-[3px]">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const badge =
+                (item.badgeKey === 'pending' && pendingOrders > 0 && pendingOrders) ||
+                (item.badgeKey === 'passwordResets' && pendingResets > 0 && pendingResets) ||
+                null;
+              return (
+                <NavLink key={item.to} to={item.to} onClick={onNavigate} className={navItemClass}>
+                  <Icon size={18} strokeWidth={2} />
+                  {item.label}
+                  {badge != null && (
+                    <span className="ml-auto rounded-full bg-pink px-2 py-0.5 text-[11px] font-bold text-text">
+                      {badge}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
+          </nav>
+        </div>
+      ))}
+
+      <div>
+        <div className="mb-1.5 px-3.5 text-[11px] font-bold uppercase tracking-wide text-text-2">Conta</div>
+        <nav className="flex flex-col gap-[3px]">
+          <Link to="/home" onClick={onNavigate} className={navItemClass({ isActive: false })}>
+            <Store size={18} strokeWidth={2} />
+            Voltar para loja
+          </Link>
           <button
             onClick={onLogout}
-            title="Sair"
-            aria-label="Sair"
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 text-text-2 outline-none transition-colors hover:bg-red/20 hover:text-red focus-visible:ring-2 focus-visible:ring-pink-light"
+            className="flex cursor-pointer items-center gap-3 rounded-sm px-3.5 py-3 text-left text-sm font-semibold text-red transition-colors duration-200 hover:bg-red/[0.08]"
           >
-            <LogOut size={15} strokeWidth={2} />
+            <LogOut size={18} strokeWidth={2} />
+            Sair
           </button>
-        </div>
+        </nav>
       </div>
     </>
   );
