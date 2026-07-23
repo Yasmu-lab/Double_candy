@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api, ApiError, type CustomerDto } from '../lib/api';
-import { phoneToEmail, supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { useCartStore } from './cartStore';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -10,10 +10,10 @@ interface AuthState {
   customer: CustomerDto | null;
   justLoggedIn: boolean;
   init: () => Promise<void>;
-  signUp: (name: string, phone: string, password: string) => Promise<void>;
+  signUp: (name: string, phone: string, password: string, email: string) => Promise<void>;
   signIn: (phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (input: Partial<{ name: string; phone: string }>) => Promise<void>;
+  updateProfile: (input: Partial<{ name: string; phone: string; email: string | null }>) => Promise<void>;
   setPhotoUrl: (photoUrl: string) => void;
   clearJustLoggedIn: () => void;
 }
@@ -59,8 +59,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     });
   },
 
-  signUp: async (name, phone, password) => {
-    const email = phoneToEmail(phone);
+  signUp: async (name, phone, password, email) => {
+    // Real email becomes this account's actual Auth identity (unlike the old synthetic
+    // phone-based one) — that's what lets supabase.auth.resetPasswordForEmail() work natively
+    // for self-service password recovery later. The login UI still only ever asks for phone.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -75,7 +77,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   signIn: async (phone, password) => {
-    const email = phoneToEmail(phone);
+    // Auth accounts are keyed by email, but the UI only asks for phone — resolve the real
+    // identity email (or the synthetic fallback for accounts that predate real-email support)
+    // server-side first.
+    const { email } = await api.resolvePhoneEmail(phone);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const customer = await api.getMe();

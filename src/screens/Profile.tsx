@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Camera, Lock, LogOut, User } from 'lucide-react';
+import { ArrowLeft, Camera, KeyRound, Lock, LogOut, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { useUiStore } from '../store/uiStore';
 const profileSchema = z.object({
   name: z.string().trim().min(2, 'Digite seu nome completo'),
   phone: z.string().trim().min(8, 'Telefone inválido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
 });
 type ProfileForm = z.infer<typeof profileSchema>;
 
@@ -47,7 +48,7 @@ export function Profile() {
 
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
-    values: { name: customer?.name ?? '', phone: customer?.phone ?? '' },
+    values: { name: customer?.name ?? '', phone: customer?.phone ?? '', email: customer?.email ?? '' },
   });
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
@@ -76,11 +77,13 @@ export function Profile() {
   const onSaveProfile = async (values: ProfileForm) => {
     setSavingProfile(true);
     try {
-      await updateProfile(values);
+      await updateProfile({ ...values, email: values.email || null });
       showToast('Perfil atualizado');
     } catch (e) {
       if (e instanceof ApiError && e.code === 'PHONE_IN_USE') {
         showToast('Esse telefone já está em uso por outra conta.', 'error');
+      } else if (e instanceof ApiError && e.code === 'EMAIL_IN_USE') {
+        showToast('Esse email já está em uso por outra conta.', 'error');
       } else {
         showToast('Não deu pra salvar. Tenta de novo.', 'error');
       }
@@ -179,11 +182,25 @@ export function Profile() {
             )}
           </div>
 
-          <div className="mb-[20px]">
+          <div className="mb-[16px]">
             <label className="mb-2 block text-[13px] font-semibold text-text-2">Telefone</label>
             <Input placeholder="(00) 00000-0000" type="tel" {...profileForm.register('phone')} />
             {profileForm.formState.errors.phone && (
               <p className="mt-1.5 text-[12.5px] text-red">{profileForm.formState.errors.phone.message}</p>
+            )}
+          </div>
+
+          <div className="mb-[20px]">
+            <label className="mb-2 block text-[13px] font-semibold text-text-2">Email</label>
+            <Input placeholder="seu@email.com" type="email" {...profileForm.register('email')} />
+            {profileForm.formState.errors.email && (
+              <p className="mt-1.5 text-[12.5px] text-red">{profileForm.formState.errors.email.message}</p>
+            )}
+            {!customer?.email && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-orange">
+                <KeyRound size={13} strokeWidth={2.2} className="shrink-0" />
+                Cadastre um email pra poder redefinir sua senha sozinho, sem precisar de um admin.
+              </p>
             )}
           </div>
 

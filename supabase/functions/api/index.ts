@@ -7,6 +7,9 @@ const LOW_STOCK_THRESHOLD = 8;
 const TZ_OFFSET_HOURS = -3; // America/Sao_Paulo, fixed (Brazil no longer observes DST)
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Must match phoneToEmail() in src/lib/supabaseClient.ts — the synthetic Auth identity email
+// used for accounts that predate real-email support (or signed up before adding one).
+const SYNTHETIC_EMAIL_DOMAIN = 'doublecandy.internal';
 
 let cachedClient: SupabaseClient | null = null;
 function sb(): SupabaseClient {
@@ -40,6 +43,10 @@ function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '');
 }
 
+function syntheticEmailFor(phone: string): string {
+  return `${normalizePhone(phone)}@${SYNTHETIC_EMAIL_DOMAIN}`;
+}
+
 async function isAdminPhone(phone: string): Promise<boolean> {
   const { data } = await sb().from('store_admins').select('id').eq('store_id', STORE_ID).eq('phone', phone).maybeSingle();
   return !!data;
@@ -47,7 +54,7 @@ async function isAdminPhone(phone: string): Promise<boolean> {
 
 async function customerDto(row: any) {
   const isAdmin = await isAdminPhone(row.phone);
-  return { id: row.id, name: row.name, phone: row.phone, photoUrl: row.photo_url, isAdmin };
+  return { id: row.id, name: row.name, phone: row.phone, email: row.email, photoUrl: row.photo_url, isAdmin };
 }
 
 function formatCents(cents: number): string {
@@ -376,6 +383,28 @@ app.put('/store', async (c) => {
   return c.json({ ok: true });
 });
 
+// ---- auth: phone -> Auth-identity email resolution ----
+// Public (no auth): sign-in and forgot-password both start with a phone number, but Supabase
+// Auth accounts are keyed by email. Always returns 200 with a best-guess email (falling back to
+// the deterministic synthetic one for unknown phones) so this never becomes an account-existence
+// oracle — the downstream signInWithPassword/resetPasswordForEmail call is where a real mismatch
+// surfaces, exactly like before this endpoint existed.
+app.post('/auth/resolve-phone', async (c) => {
+  const body = await c.req.json();
+  if (typeof body.phone !== 'string' || !body.phone.trim()) {
+    return c.json({ error: 'INVALID_INPUT' }, 400);
+  }
+  const phone = normalizePhone(body.phone);
+  const { data: customer } = await sb()
+    .from('customers')
+    .select('email')
+    .eq('store_id', STORE_ID)
+    .eq('phone', phone)
+    .maybeSingle();
+  const hasRealEmail = !!customer?.email;
+  return c.json({ email: hasRealEmail ? customer!.email : syntheticEmailFor(phone), hasRealEmail });
+});
+
 // ---- me (customer profile, tied to the real Supabase Auth session) ----
 
 // Called once right after client-side signUp(). Links the new auth user to an existing
@@ -389,6 +418,10 @@ app.post('/me/bootstrap', async (c) => {
     return c.json({ error: 'INVALID_INPUT' }, 400);
   }
   const phone = normalizePhone(body.phone);
+  // user.email is already the real address for new signups (the client passes it straight to
+  // signUp) — trust that over any client-supplied `email` field, which only matters for the
+  // legacy path below where an account can predate real-email support.
+  const email = user.email && user.email !== syntheticEmailFor(phone) ? user.email : null;
   const client = sb();
 
   const { data: existing, error: existingErr } = await client
@@ -411,7 +444,7 @@ app.post('/me/bootstrap', async (c) => {
   if (legacy) {
     const { data: updated, error } = await client
       .from('customers')
-      .update({ auth_user_id: user.id, name: body.name.trim() })
+      .update({ auth_user_id: user.id, name: body.name.trim(), email: email ?? legacy.email })
       .eq('id', legacy.id)
       .select()
       .single();
@@ -421,7 +454,7 @@ app.post('/me/bootstrap', async (c) => {
 
   const { data: created, error } = await client
     .from('customers')
-    .insert({ store_id: STORE_ID, auth_user_id: user.id, name: body.name.trim(), phone })
+    .insert({ store_id: STORE_ID, auth_user_id: user.id, name: body.name.trim(), phone, email })
     .select()
     .single();
   if (error) return err(c, error);
@@ -451,10 +484,32 @@ app.put('/me', async (c) => {
   const patch: Record<string, unknown> = {};
   if (body.name !== undefined) patch.name = body.name;
   if (body.phone !== undefined) patch.phone = normalizePhone(body.phone);
+  if (body.email !== undefined) patch.email = typeof body.email === 'string' && body.email.trim() ? body.email.trim().toLowerCase() : null;
   if (!Object.keys(patch).length) return c.json(await customerDto(auth.customer));
-  const { data, error } = await sb().from('customers').update(patch).eq('id', auth.customerId).select().single();
+  const client = sb();
+
+  // Setting a real email also has to become this customer's actual Auth-identity email —
+  // that's what unlocks the native supabase.auth.resetPasswordForEmail() flow for them going
+  // forward. email_confirm:true skips the double opt-in since this is an admin-API call, not
+  // the client-facing signup flow (which is where "Confirm email" project settings still apply).
+  if (patch.email) {
+    const { error: authErr } = await client.auth.admin.updateUserById(auth.userId, {
+      email: patch.email as string,
+      email_confirm: true,
+    });
+    if (authErr) {
+      if (String(authErr.message).toLowerCase().includes('already been registered')) {
+        return c.json({ error: 'EMAIL_IN_USE' }, 409);
+      }
+      return err(c, authErr);
+    }
+  }
+
+  const { data, error } = await client.from('customers').update(patch).eq('id', auth.customerId).select().single();
   if (error) {
-    if (error.code === '23505') return c.json({ error: 'PHONE_IN_USE' }, 409);
+    if (error.code === '23505') {
+      return c.json({ error: String(error.message).includes('email') ? 'EMAIL_IN_USE' : 'PHONE_IN_USE' }, 409);
+    }
     return err(c, error);
   }
   return c.json(await customerDto(data));

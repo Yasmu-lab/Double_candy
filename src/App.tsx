@@ -11,6 +11,7 @@ import { Home } from './screens/Home';
 import { Login } from './screens/Login';
 import { Profile } from './screens/Profile';
 import { ProductDetail } from './screens/ProductDetail';
+import { ResetPassword } from './screens/ResetPassword';
 import { Splash } from './screens/Splash';
 import { useAuthStore } from './store/authStore';
 import { useCartStore } from './store/cartStore';
@@ -79,6 +80,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Splash />} />
         <Route path="/login" element={<Login />} />
+        {/* Not wrapped in RequireAuth: the recovery session from the email link establishes
+            itself asynchronously, and this screen shouldn't race that against a redirect. */}
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/home"
           element={

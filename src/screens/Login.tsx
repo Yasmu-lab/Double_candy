@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, ArrowRight, Lock, Lollipop, Phone, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Lock, Lollipop, Mail, Phone, User } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -7,12 +7,14 @@ import { z } from 'zod';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { api, ApiError } from '../lib/api';
+import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
 
 const signUpSchema = z.object({
   name: z.string().trim().min(2, 'Digite seu nome completo'),
   phone: z.string().trim().min(8, 'Telefone inválido'),
+  email: z.string().trim().email('Email inválido'),
   password: z.string().min(6, 'Mínimo de 6 caracteres'),
 });
 type SignUpForm = z.infer<typeof signUpSchema>;
@@ -47,7 +49,7 @@ export function Login() {
 
   const signUpForm = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { name: '', phone: '', password: '' },
+    defaultValues: { name: '', phone: '', email: '', password: '' },
   });
   const signInForm = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
@@ -61,7 +63,7 @@ export function Login() {
   const onSignUp = async (values: SignUpForm) => {
     setSubmitting(true);
     try {
-      await signUp(values.name, values.phone, values.password);
+      await signUp(values.name, values.phone, values.password, values.email);
       navigate('/home');
     } catch (e) {
       if (e instanceof Error && e.message === 'SIGNUP_NEEDS_CONFIRMATION') {
@@ -89,8 +91,18 @@ export function Login() {
   const onForgot = async (values: ForgotForm) => {
     setSubmitting(true);
     try {
-      await api.requestPasswordReset(values.phone);
-      showToast('Pedido enviado! Um administrador vai redefinir sua senha em breve.');
+      const { email, hasRealEmail } = await api.resolvePhoneEmail(values.phone);
+      if (hasRealEmail) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        showToast('Te mandamos um link de redefinição no email cadastrado.');
+      } else {
+        // No real email on file yet (older account) — fall back to the admin-mediated flow.
+        await api.requestPasswordReset(values.phone);
+        showToast('Pedido enviado! Como você ainda não tem email cadastrado, um administrador vai te ajudar.');
+      }
       forgotForm.reset();
       setMode('signin');
     } catch (e) {
@@ -136,6 +148,20 @@ export function Login() {
                 {signUpForm.formState.errors.phone && (
                   <p className="mt-1.5 text-[12.5px] text-red">{signUpForm.formState.errors.phone.message}</p>
                 )}
+              </div>
+
+              <div className="mb-[18px]">
+                <label className="mb-2 block text-[13px] font-semibold text-text-2">Email</label>
+                <Input
+                  icon={<Mail size={20} strokeWidth={2} className="shrink-0 text-orange" />}
+                  placeholder="seu@email.com"
+                  type="email"
+                  {...signUpForm.register('email')}
+                />
+                {signUpForm.formState.errors.email && (
+                  <p className="mt-1.5 text-[12.5px] text-red">{signUpForm.formState.errors.email.message}</p>
+                )}
+                <p className="mt-1.5 text-[12px] text-text-3">Usamos só pra te ajudar a recuperar a senha se precisar.</p>
               </div>
 
               <div className="mb-[26px]">
@@ -239,7 +265,7 @@ export function Login() {
             </button>
             <h1 className="mb-1.5 font-display text-3xl font-bold tracking-[-0.6px]">Esqueci minha senha</h1>
             <p className="mb-8 text-[15px] text-text-2">
-              Informa seu telefone. Um administrador vai te ajudar a redefinir a senha.
+              Informa seu telefone. Se você tiver um email cadastrado, mandamos um link de redefinição na hora.
             </p>
 
             <form onSubmit={forgotForm.handleSubmit(onForgot)} noValidate>
