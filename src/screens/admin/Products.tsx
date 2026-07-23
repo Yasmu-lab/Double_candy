@@ -45,7 +45,7 @@ export function Products() {
   return (
     <div className="animate-dc-fade-up">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
+        <div className="no-scrollbar min-w-0 flex gap-2 overflow-x-auto">
           <Chip active={filter === 'Todos'} onClick={() => setFilter('Todos')}>
             Todos
           </Chip>
