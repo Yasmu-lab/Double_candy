@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   LogOut,
+  Menu,
   Package,
   Search,
   Settings,
@@ -11,6 +12,7 @@ import {
   Truck,
   Users,
   BarChart3,
+  X,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -37,7 +39,7 @@ const NAV_ITEMS = [
 ];
 
 const TITLES: Record<string, [string, string]> = {
-  '/admin/dashboard': ['Dashboard', 'Visão geral da sua cantina hoje'],
+  '/admin/dashboard': ['Dashboard', 'Visão geral da sua loja hoje'],
   '/admin/products': ['Produtos', 'Gerencie o cardápio de doces'],
   '/admin/categories': ['Categorias', 'Organize os tipos de doce'],
   '/admin/orders': ['Pedidos', 'Acompanhe e atualize os pedidos'],
@@ -48,6 +50,77 @@ const TITLES: Record<string, [string, string]> = {
   '/admin/password-resets': ['Recuperação de senha', 'Ajude clientes que esqueceram a senha'],
   '/admin/settings': ['Configurações', 'Preferências da loja'],
 };
+
+function AdminNavList({
+  pendingOrders,
+  pendingResets,
+  customerName,
+  onNavigate,
+  onLogout,
+}: {
+  pendingOrders: number;
+  pendingResets: number;
+  customerName: string | undefined;
+  onNavigate?: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <>
+      <nav className="flex flex-col gap-[3px]">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const badge =
+            (item.badgeKey === 'pending' && pendingOrders > 0 && pendingOrders) ||
+            (item.badgeKey === 'passwordResets' && pendingResets > 0 && pendingResets) ||
+            null;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 rounded-sm px-3.5 py-3 text-sm font-semibold transition-all duration-200',
+                  isActive
+                    ? 'bg-gradient-to-br from-pink/20 to-purple/15 text-text shadow-[inset_3px_0_0_#FF4FA0]'
+                    : 'text-text-2 hover:text-text',
+                ].join(' ')
+              }
+            >
+              <Icon size={18} strokeWidth={2} />
+              {item.label}
+              {badge != null && (
+                <span className="ml-auto rounded-full bg-pink px-2 py-0.5 text-[11px] font-bold text-text">
+                  {badge}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      <div className="mt-5 rounded-md border border-pink/20 bg-gradient-to-br from-pink/[0.15] to-purple/[0.15] p-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-card-2">
+            <Users size={18} strokeWidth={2} className="text-lime" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-bold">{customerName ?? 'Você'}</div>
+            <div className="text-[11px] text-text-2">Administradora</div>
+          </div>
+          <button
+            onClick={onLogout}
+            title="Sair"
+            aria-label="Sair"
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 text-text-2 outline-none transition-colors hover:bg-red/20 hover:text-red focus-visible:ring-2 focus-visible:ring-pink-light"
+          >
+            <LogOut size={15} strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export function AdminLayout({ children }: { children?: ReactNode }) {
   const location = useLocation();
@@ -62,6 +135,11 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
   const setOpenOrderId = useAdminStore((s) => s.setOpenOrderId);
   const customer = useAuthStore((s) => s.customer);
   const logout = useAuthStore((s) => s.logout);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -140,64 +218,65 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
             </div>
           </Link>
 
-          <nav className="flex flex-col gap-[3px]">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const badge =
-                (item.badgeKey === 'pending' && pendingOrders.length > 0 && pendingOrders.length) ||
-                (item.badgeKey === 'passwordResets' && pendingResets.length > 0 && pendingResets.length) ||
-                null;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    [
-                      'flex items-center gap-3 rounded-sm px-3.5 py-3 text-sm font-semibold transition-all duration-200',
-                      isActive
-                        ? 'bg-gradient-to-br from-pink/20 to-purple/15 text-text shadow-[inset_3px_0_0_#FF4FA0]'
-                        : 'text-text-2 hover:text-text',
-                    ].join(' ')
-                  }
-                >
-                  <Icon size={18} strokeWidth={2} />
-                  {item.label}
-                  {badge != null && (
-                    <span className="ml-auto rounded-full bg-pink px-2 py-0.5 text-[11px] font-bold text-text">
-                      {badge}
-                    </span>
-                  )}
-                </NavLink>
-              );
-            })}
-          </nav>
-
-          <div className="mt-5 rounded-md border border-pink/20 bg-gradient-to-br from-pink/[0.15] to-purple/[0.15] p-3.5">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-card-2">
-                <Users size={18} strokeWidth={2} className="text-lime" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-bold">{customer?.name ?? 'Você'}</div>
-                <div className="text-[11px] text-text-2">Administradora</div>
-              </div>
-              <button
-                onClick={handleLogout}
-                title="Sair"
-                aria-label="Sair"
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 text-text-2 outline-none transition-colors hover:bg-red/20 hover:text-red focus-visible:ring-2 focus-visible:ring-pink-light"
-              >
-                <LogOut size={15} strokeWidth={2} />
-              </button>
-            </div>
-          </div>
+          <AdminNavList
+            pendingOrders={pendingOrders.length}
+            pendingResets={pendingResets.length}
+            customerName={customer?.name}
+            onLogout={handleLogout}
+          />
         </aside>
+
+        {mobileNavOpen && (
+          <>
+            <div
+              onClick={() => setMobileNavOpen(false)}
+              className="animate-dc-fade fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm lg:hidden"
+            />
+            <div className="dc-scroll animate-dc-drawer-in-left fixed inset-y-0 left-0 z-[75] w-[280px] max-w-[85vw] overflow-y-auto border-r border-white/[0.08] bg-surface p-4 shadow-[24px_0_60px_-10px_rgba(0,0,0,0.6)] lg:hidden">
+              <div className="mb-5 flex items-center justify-between px-1 pt-1.5">
+                <Link to="/home" onClick={() => setMobileNavOpen(false)} className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-gradient-to-br from-pink to-purple">
+                    <ShoppingBag size={20} strokeWidth={2.2} className="text-text" />
+                  </div>
+                  <div>
+                    <div className="font-display text-[15px] font-bold">Double Candy</div>
+                    <div className="text-[11px] text-text-2">Painel do vendedor</div>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => setMobileNavOpen(false)}
+                  aria-label="Fechar menu"
+                  className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-card-2 text-text outline-none focus-visible:ring-2 focus-visible:ring-pink-light"
+                >
+                  <X size={18} strokeWidth={2.4} />
+                </button>
+              </div>
+
+              <AdminNavList
+                pendingOrders={pendingOrders.length}
+                pendingResets={pendingResets.length}
+                customerName={customer?.name}
+                onNavigate={() => setMobileNavOpen(false)}
+                onLogout={handleLogout}
+              />
+            </div>
+          </>
+        )}
 
         <main className="min-w-0 flex-1">
           <div className="mb-[22px] flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="font-display text-2xl font-bold tracking-[-0.5px] lg:text-[26px]">{title}</h1>
-              <p className="mt-1 text-sm text-text-2">{subtitle}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Abrir menu"
+                className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-white/[0.08] bg-surface text-text outline-none transition-colors hover:bg-card-2 focus-visible:ring-2 focus-visible:ring-pink-light lg:hidden"
+              >
+                <Menu size={20} strokeWidth={2.2} />
+              </button>
+              <div>
+                <h1 className="font-display text-2xl font-bold tracking-[-0.5px] lg:text-[26px]">{title}</h1>
+                <p className="mt-1 text-sm text-text-2">{subtitle}</p>
+              </div>
             </div>
             <div className="flex items-center gap-3 print:hidden">
               <div

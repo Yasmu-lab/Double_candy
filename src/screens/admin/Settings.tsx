@@ -94,7 +94,7 @@ export function Settings() {
               <input
                 value={pickupLocation}
                 onChange={(e) => setPickupLocation(e.target.value)}
-                placeholder="Ex: Cantina, bloco A"
+                placeholder="Ex: Double Candy, bloco A"
                 className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
               />
             </div>

@@ -51,7 +51,7 @@ function CategoryModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-dc-scale-in w-full max-w-[420px] rounded-xl border border-white/[0.08] bg-surface p-[26px] shadow-[0_40px_90px_-20px_rgba(0,0,0,0.7)]"
+        className="dc-scroll animate-dc-scale-in max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-xl border border-white/[0.08] bg-surface p-[26px] shadow-[0_40px_90px_-20px_rgba(0,0,0,0.7)]"
       >
         <div className="mb-[22px] flex items-center justify-between">
           <div>

@@ -80,7 +80,7 @@ export function CartOverlay() {
             </div>
             <h2 className="mt-[22px] font-display text-2xl font-bold">Reserva confirmada!</h2>
             <p className="mt-1.5 max-w-[280px] text-[14.5px] text-text-2">
-              É só passar na cantina amanhã ao meio-dia pra retirar.
+              É só passar na loja amanhã ao meio-dia pra retirar.
             </p>
             <div className="mt-[26px] w-full">
               <OrderSummary order={lastOrder} />

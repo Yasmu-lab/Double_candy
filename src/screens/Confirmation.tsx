@@ -24,7 +24,7 @@ export function Confirmation() {
           Reserva confirmada!
         </h1>
         <p className="animate-dc-fade-up mt-1.5 max-w-[280px] text-[14.5px] text-text-2 [animation-delay:.3s]">
-          Seu pedido tá guardado. É só passar na cantina pra retirar.
+          Seu pedido tá guardado. É só passar na loja pra retirar.
         </p>
 
         <div className="animate-dc-fade-up mt-7 w-full [animation-delay:.4s]">

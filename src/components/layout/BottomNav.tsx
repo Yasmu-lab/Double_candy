@@ -1,4 +1,4 @@
-import { Home, Search, ShoppingBag, Heart, Clock } from 'lucide-react';
+import { Home, Search, ShoppingBag, User, Clock } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCartCount } from '../../store/cartStore';
 import { useUiStore } from '../../store/uiStore';
@@ -8,6 +8,12 @@ export function BottomNav() {
   const location = useLocation();
   const count = useCartCount();
   const openCart = useUiStore((s) => s.openCart);
+  const requestSearchFocus = useUiStore((s) => s.requestSearchFocus);
+
+  const handleSearch = () => {
+    requestSearchFocus();
+    if (location.pathname !== '/home') navigate('/home');
+  };
 
   const navBtn = (active: boolean) =>
     `w-[52px] h-11 rounded-sm flex items-center justify-center cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-pink-light ${
@@ -21,8 +27,9 @@ export function BottomNav() {
           <Home size={23} strokeWidth={2} />
         </button>
         <button
+          onClick={handleSearch}
           aria-label="Buscar"
-          className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-pink-light"
+          className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer outline-none transition-colors focus-visible:ring-2 focus-visible:ring-pink-light active:scale-90"
         >
           <Search size={23} strokeWidth={2} />
         </button>
@@ -41,11 +48,8 @@ export function BottomNav() {
             </span>
           )}
         </button>
-        <button
-          aria-label="Favoritos"
-          className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-pink-light"
-        >
-          <Heart size={23} strokeWidth={2} />
+        <button onClick={() => navigate('/profile')} aria-label="Perfil" className={navBtn(location.pathname === '/profile')}>
+          <User size={23} strokeWidth={2} />
         </button>
         <button onClick={() => navigate('/history')} aria-label="Meus pedidos" className={navBtn(location.pathname === '/history')}>
           <Clock size={23} strokeWidth={2} />
