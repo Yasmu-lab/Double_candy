@@ -1,6 +1,7 @@
 import { BadgeDollarSign, Banknote, CircleDollarSign, Star, TrendingDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MonthlyBarChart } from '../../components/charts/MonthlyBarChart';
+import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { api } from '../../lib/api';
 import { formatBRLCents } from '../../lib/format';
@@ -9,10 +10,28 @@ type ReportsData = Awaited<ReturnType<typeof api.getReports>>;
 
 export function Reports() {
   const [data, setData] = useState<ReportsData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  const loadReports = () => {
+    setLoadError(false);
+    api.getReports().then(setData).catch(() => setLoadError(true));
+  };
 
   useEffect(() => {
-    api.getReports().then(setData);
+    loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-white/[0.06] bg-surface p-[26px] text-center">
+        <p className="text-sm text-text-2">Não deu pra carregar os relatórios.</p>
+        <Button variant="outline" className="mt-4" onClick={loadReports}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
 
   if (!data) {
     return (

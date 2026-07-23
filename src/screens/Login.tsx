@@ -161,7 +161,7 @@ export function Login() {
                 {signUpForm.formState.errors.email && (
                   <p className="mt-1.5 text-[12.5px] text-red">{signUpForm.formState.errors.email.message}</p>
                 )}
-                <p className="mt-1.5 text-[12px] text-text-3">Usamos só pra te ajudar a recuperar a senha se precisar.</p>
+                <p className="mt-1.5 text-[12px] text-text-2">Usamos só pra te ajudar a recuperar a senha se precisar.</p>
               </div>
 
               <div className="mb-[26px]">
@@ -296,7 +296,7 @@ export function Login() {
           </>
         )}
 
-        <p className="mt-[22px] text-center text-[12.5px] text-text-3">Ao continuar você concorda com os termos da Double Candy.</p>
+        <p className="mt-[22px] text-center text-[12.5px] text-text-2">Ao continuar você concorda com os termos da Double Candy.</p>
       </div>
     </div>
   );

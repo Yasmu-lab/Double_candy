@@ -1,4 +1,4 @@
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Package, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ProductModal } from '../../components/admin/ProductModal';
 import { Chip } from '../../components/ui/Chip';
@@ -91,6 +91,21 @@ export function Products() {
                 <Skeleton className="hidden h-8 w-16 justify-self-end md:block" />
               </div>
             ))}
+          </div>
+        )}
+        {!loading && filtered.length === 0 && (
+          <div className="flex flex-col items-center px-[22px] py-16 text-center">
+            <div className="mb-4 flex h-[64px] w-[64px] items-center justify-center rounded-xl bg-card">
+              <Package size={28} strokeWidth={1.7} className="text-card-2" />
+            </div>
+            <h3 className="mb-1 font-display text-lg font-bold">
+              {filter === 'Todos' ? 'Nenhum produto ainda' : 'Nada nessa categoria'}
+            </h3>
+            <p className="max-w-[320px] text-sm text-text-2">
+              {filter === 'Todos'
+                ? 'Cadastre o primeiro produto do cardápio.'
+                : 'Nenhum produto cadastrado nessa categoria por enquanto.'}
+            </p>
           </div>
         )}
         {filtered.map((p) => {

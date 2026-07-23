@@ -14,15 +14,36 @@ export function Settings() {
   const [pickupLocation, setPickupLocation] = useState('');
   const [pickupCutoffMinutes, setPickupCutoffMinutes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  const loadStore = () => {
+    setLoadError(false);
+    api
+      .getStore()
+      .then((s) => {
+        setStore(s);
+        setName(s.name);
+        setPickupLocation(s.pickupLocation ?? '');
+        setPickupCutoffMinutes(String(s.pickupCutoffMinutes));
+      })
+      .catch(() => setLoadError(true));
+  };
 
   useEffect(() => {
-    api.getStore().then((s) => {
-      setStore(s);
-      setName(s.name);
-      setPickupLocation(s.pickupLocation ?? '');
-      setPickupCutoffMinutes(String(s.pickupCutoffMinutes));
-    });
+    loadStore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (loadError) {
+    return (
+      <div className="max-w-[560px] rounded-xl border border-white/[0.06] bg-surface p-[26px] text-center">
+        <p className="text-sm text-text-2">Não deu pra carregar as configurações.</p>
+        <Button variant="outline" className="mt-4" onClick={loadStore}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
 
   if (!store) {
     return (
@@ -84,7 +105,7 @@ export function Settings() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Double Candy"
-                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
               />
             </div>
           </div>
@@ -95,7 +116,7 @@ export function Settings() {
                 value={pickupLocation}
                 onChange={(e) => setPickupLocation(e.target.value)}
                 placeholder="Ex: Double Candy, bloco A"
-                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
               />
             </div>
           </div>
@@ -107,7 +128,7 @@ export function Settings() {
                 onChange={(e) => setPickupCutoffMinutes(e.target.value.replace(/\D/g, ''))}
                 placeholder="15"
                 inputMode="numeric"
-                className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
+                className="min-w-0 flex-1 bg-transparent font-body text-base text-text outline-none placeholder:text-text-3"
               />
             </div>
             <p className="mt-1.5 text-[12.5px] text-text-2">
