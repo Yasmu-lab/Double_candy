@@ -1,8 +1,10 @@
-import { ShoppingBag } from 'lucide-react';
+import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BottomNav } from '../components/layout/BottomNav';
 import { StatusBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { IconButton } from '../components/ui/IconButton';
 import { Skeleton } from '../components/ui/Skeleton';
 import { formatBRLCents, formatRelativeDate } from '../lib/format';
 import { paymentLabel, useOrderStore } from '../store/orderStore';
@@ -23,6 +25,7 @@ const statusIconBg: Record<OrderStatus, string> = {
 };
 
 export function History() {
+  const navigate = useNavigate();
   const orders = useOrderStore((s) => s.orders);
   const loading = useOrderStore((s) => s.loading);
   const fetchMine = useOrderStore((s) => s.fetchMine);
@@ -49,8 +52,15 @@ export function History() {
   return (
     <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pt-10">
       <div className="lg:mx-auto lg:max-w-2xl">
-        <h1 className="font-display text-[26px] font-bold tracking-[-0.5px]">Meus pedidos</h1>
-        <p className="mb-5 mt-1 text-sm text-text-2">Acompanhe tudo o que você reservou.</p>
+        <div className="mb-5 flex items-center gap-3.5">
+          <IconButton onClick={() => navigate(-1)} aria-label="Voltar">
+            <ArrowLeft size={20} strokeWidth={2.2} />
+          </IconButton>
+          <div>
+            <h1 className="font-display text-[26px] font-bold tracking-[-0.5px]">Meus pedidos</h1>
+            <p className="mt-1 text-sm text-text-2">Acompanhe tudo o que você reservou.</p>
+          </div>
+        </div>
 
         {loading && orders.length === 0 ? (
           <div className="flex flex-col gap-3">
