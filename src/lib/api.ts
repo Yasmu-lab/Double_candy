@@ -160,8 +160,14 @@ export const api = {
 
   getMe: () => request<CustomerDto>('/me'),
 
-  updateMe: (input: Partial<{ name: string; phone: string }>) =>
+  updateMe: (input: Partial<{ name: string; phone: string; email: string | null }>) =>
     request<CustomerDto>('/me', { method: 'PUT', body: JSON.stringify(input) }),
+
+  // Public: resolves a phone number to the Supabase Auth identity email behind it (real, once
+  // set, or the deterministic synthetic fallback) — sign-in and forgot-password both need this
+  // since Auth accounts are keyed by email but the UI only ever asks for a phone number.
+  resolvePhoneEmail: (phone: string) =>
+    request<{ email: string; hasRealEmail: boolean }>('/auth/resolve-phone', { method: 'POST', body: JSON.stringify({ phone }) }),
 
   uploadMyPhoto: (file: File) => {
     const form = new FormData();
@@ -202,6 +208,7 @@ export interface CustomerDto {
   id: string;
   name: string;
   phone: string;
+  email: string | null;
   photoUrl: string | null;
   isAdmin: boolean;
 }
