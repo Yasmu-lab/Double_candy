@@ -43,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={[
-          'relative overflow-hidden inline-flex items-center justify-center font-display font-semibold transition-all duration-150 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+          'relative overflow-hidden inline-flex items-center justify-center font-display font-semibold transition-all duration-150 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-pink-light',
           variantClasses[variant],
           sizeClasses[size],
           fullWidth ? 'w-full' : '',

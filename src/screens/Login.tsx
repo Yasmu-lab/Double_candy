@@ -65,9 +65,9 @@ export function Login() {
       navigate('/home');
     } catch (e) {
       if (e instanceof Error && e.message === 'SIGNUP_NEEDS_CONFIRMATION') {
-        showToast('Confirmação de e-mail está ativa no projeto Supabase — peça pro admin desativar em Auth > Sign In / Providers > Email.');
+        showToast('Confirmação de e-mail está ativa no projeto Supabase — peça pro admin desativar em Auth > Sign In / Providers > Email.', 'error');
       } else {
-        showToast(e instanceof Error ? translateAuthError(e.message) : 'Não deu pra criar a conta.');
+        showToast(e instanceof Error ? translateAuthError(e.message) : 'Não deu pra criar a conta.', 'error');
       }
     } finally {
       setSubmitting(false);
@@ -80,7 +80,7 @@ export function Login() {
       await signIn(values.phone, values.password);
       navigate('/home');
     } catch (e) {
-      showToast(e instanceof Error ? translateAuthError(e.message) : 'Não deu pra entrar.');
+      showToast(e instanceof Error ? translateAuthError(e.message) : 'Não deu pra entrar.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -94,14 +94,14 @@ export function Login() {
       forgotForm.reset();
       setMode('signin');
     } catch (e) {
-      showToast(e instanceof ApiError ? 'Não deu pra enviar o pedido. Tenta de novo.' : 'Não deu pra enviar o pedido.');
+      showToast(e instanceof ApiError ? 'Não deu pra enviar o pedido. Tenta de novo.' : 'Não deu pra enviar o pedido.', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="dc-app-bg min-h-dvh px-6 py-16 sm:py-20">
+    <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-6 py-16 sm:py-20">
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-7 flex h-[72px] w-[72px] items-center justify-center rounded-lg bg-gradient-to-br from-pink to-purple shadow-[0_16px_40px_-12px_rgba(255,79,160,0.6)]">
           <Lollipop size={36} strokeWidth={2} color="#fff" />

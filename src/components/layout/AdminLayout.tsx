@@ -14,9 +14,10 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { Spinner } from '../ui/Skeleton';
 import { useAdminStore } from '../../store/adminStore';
 import { useAuthStore } from '../../store/authStore';
 import { useOrderStore } from '../../store/orderStore';
@@ -183,7 +184,8 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
               <button
                 onClick={handleLogout}
                 title="Sair"
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 text-text-2 transition-colors hover:bg-red/20 hover:text-red"
+                aria-label="Sair"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-card-2 text-text-2 outline-none transition-colors hover:bg-red/20 hover:text-red focus-visible:ring-2 focus-visible:ring-pink-light"
               >
                 <LogOut size={15} strokeWidth={2} />
               </button>
@@ -215,7 +217,7 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
                   />
                 </div>
                 {searchOpen && searchQuery.trim() && (
-                  <div className="dc-scroll absolute right-0 top-[54px] z-30 max-h-[360px] w-[320px] overflow-y-auto rounded-md border border-white/[0.08] bg-surface p-2 shadow-[0_24px_50px_-16px_rgba(0,0,0,0.6)]">
+                  <div className="dc-scroll absolute right-0 top-[54px] z-30 max-h-[360px] w-[320px] max-w-[92vw] overflow-y-auto rounded-md border border-white/[0.08] bg-surface p-2 shadow-[0_24px_50px_-16px_rgba(0,0,0,0.6)]">
                     {!hasSearchResults && (
                       <div className="px-3 py-6 text-center text-[13px] text-text-2">Nada encontrado.</div>
                     )}
@@ -272,7 +274,15 @@ export function AdminLayout({ children }: { children?: ReactNode }) {
             </div>
           </div>
 
-          {children ?? <Outlet />}
+          <Suspense
+            fallback={
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <Spinner size={32} />
+              </div>
+            }
+          >
+            {children ?? <Outlet />}
+          </Suspense>
         </main>
       </div>
     </div>

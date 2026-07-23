@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { BottomNav } from '../components/layout/BottomNav';
 import { StatusBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Skeleton } from '../components/ui/Skeleton';
 import { formatBRLCents, formatRelativeDate } from '../lib/format';
 import { paymentLabel, useOrderStore } from '../store/orderStore';
 import { useUiStore } from '../store/uiStore';
@@ -39,20 +40,39 @@ export function History() {
       await setStatus(id, 'cancelled', { cancelledBy: 'client' });
       showToast(`${displayId} cancelado`);
     } catch {
-      showToast('Não deu pra cancelar esse pedido.');
+      showToast('Não deu pra cancelar esse pedido.', 'error');
     } finally {
       setCancellingId(null);
     }
   };
 
   return (
-    <div className="dc-app-bg min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pt-10">
+    <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pt-10">
       <div className="lg:mx-auto lg:max-w-2xl">
         <h1 className="font-display text-[26px] font-bold tracking-[-0.5px]">Meus pedidos</h1>
         <p className="mb-5 mt-1 text-sm text-text-2">Acompanhe tudo o que você reservou.</p>
 
         {loading && orders.length === 0 ? (
-          <div className="py-10 text-center text-sm text-text-2">Carregando...</div>
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-[22px] border border-white/5 bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-[46px] w-[46px] shrink-0 rounded-sm" />
+                    <div>
+                      <Skeleton className="mb-1.5 h-4 w-24" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                <div className="mt-3.5 flex items-center justify-between border-t border-white/[0.06] pt-3.5">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : orders.length === 0 ? (
           <EmptyState
             icon={<ShoppingBag size={44} strokeWidth={1.8} />}

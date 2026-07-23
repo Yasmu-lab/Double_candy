@@ -73,11 +73,11 @@ export function ProductModal() {
   const pickFile = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      showToast('Formato não aceito. Use JPG, PNG, WEBP ou GIF.');
+      showToast('Formato não aceito. Use JPG, PNG, WEBP ou GIF.', 'error');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Imagem muito grande. Máximo de 5MB.');
+      showToast('Imagem muito grande. Máximo de 5MB.', 'error');
       return;
     }
     setImageFile(file);
@@ -103,14 +103,14 @@ export function ProductModal() {
           await api.uploadProductImage(id, imageFile);
         } catch (e) {
           const code = e instanceof ApiError ? e.code : undefined;
-          showToast(code && IMAGE_ERROR_MESSAGES[code] ? IMAGE_ERROR_MESSAGES[code] : 'Produto salvo, mas a foto não subiu.');
+          showToast(code && IMAGE_ERROR_MESSAGES[code] ? IMAGE_ERROR_MESSAGES[code] : 'Produto salvo, mas a foto não subiu.', 'error');
         }
         await fetchProducts({ force: true });
       }
       closeProdModal();
       showToast('Produto salvo com sucesso');
     } catch {
-      showToast('Não deu pra salvar. Tenta de novo.');
+      showToast('Não deu pra salvar. Tenta de novo.', 'error');
     } finally {
       setSaving(false);
     }

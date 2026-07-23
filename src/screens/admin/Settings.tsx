@@ -1,6 +1,7 @@
 import { Store } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/Button';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { api } from '../../lib/api';
 import { useUiStore } from '../../store/uiStore';
 
@@ -24,7 +25,23 @@ export function Settings() {
   }, []);
 
   if (!store) {
-    return <div className="py-10 text-center text-sm text-text-2">Carregando...</div>;
+    return (
+      <div className="max-w-[560px]">
+        <div className="rounded-xl border border-white/[0.06] bg-surface p-[26px]">
+          <div className="mb-[22px] flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-[13px]" />
+            <Skeleton className="h-5 w-40" />
+          </div>
+          <Skeleton className="mb-2 h-3.5 w-24" />
+          <Skeleton className="h-[52px] w-full rounded-sm" />
+          <Skeleton className="mb-2 mt-5 h-3.5 w-24" />
+          <Skeleton className="h-[52px] w-full rounded-sm" />
+          <Skeleton className="mb-2 mt-5 h-3.5 w-32" />
+          <Skeleton className="h-[52px] w-full rounded-sm" />
+          <Skeleton className="mt-6 h-[52px] w-full rounded-md" />
+        </div>
+      </div>
+    );
   }
 
   const canSave = name.trim().length > 1 && Number(pickupCutoffMinutes) >= 0;
@@ -40,7 +57,7 @@ export function Settings() {
       });
       showToast('Configurações salvas com sucesso');
     } catch {
-      showToast('Não deu pra salvar. Tenta de novo.');
+      showToast('Não deu pra salvar. Tenta de novo.', 'error');
     } finally {
       setSaving(false);
     }

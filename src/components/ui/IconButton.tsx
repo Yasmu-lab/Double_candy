@@ -29,7 +29,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     <button
       ref={ref}
       className={[
-        'inline-flex items-center justify-center shrink-0 cursor-pointer transition-all duration-150 active:scale-90',
+        'inline-flex items-center justify-center shrink-0 cursor-pointer transition-all duration-150 active:scale-90 outline-none focus-visible:ring-2 focus-visible:ring-pink-light',
         toneClasses[tone],
         sizeClasses[size],
         className,

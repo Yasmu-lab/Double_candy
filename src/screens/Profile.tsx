@@ -58,7 +58,7 @@ export function Profile() {
     if (!file) return;
     const error = validateImageFile(file);
     if (error) {
-      showToast(error);
+      showToast(error, 'error');
       return;
     }
     setUploadingPhoto(true);
@@ -67,7 +67,7 @@ export function Profile() {
       setPhotoUrl(photoUrl);
       showToast('Foto atualizada');
     } catch {
-      showToast('Não deu pra subir a foto.');
+      showToast('Não deu pra subir a foto.', 'error');
     } finally {
       setUploadingPhoto(false);
     }
@@ -80,9 +80,9 @@ export function Profile() {
       showToast('Perfil atualizado');
     } catch (e) {
       if (e instanceof ApiError && e.code === 'PHONE_IN_USE') {
-        showToast('Esse telefone já está em uso por outra conta.');
+        showToast('Esse telefone já está em uso por outra conta.', 'error');
       } else {
-        showToast('Não deu pra salvar. Tenta de novo.');
+        showToast('Não deu pra salvar. Tenta de novo.', 'error');
       }
     } finally {
       setSavingProfile(false);
@@ -97,7 +97,7 @@ export function Profile() {
       passwordForm.reset();
       showToast('Senha alterada com sucesso');
     } catch {
-      showToast('Não deu pra trocar a senha. Tenta de novo.');
+      showToast('Não deu pra trocar a senha. Tenta de novo.', 'error');
     } finally {
       setSavingPassword(false);
     }
@@ -109,7 +109,7 @@ export function Profile() {
   };
 
   return (
-    <div className="dc-app-bg min-h-dvh px-5 pb-16 pt-8 lg:px-8 lg:pt-10">
+    <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-5 pb-16 pt-8 lg:px-8 lg:pt-10">
       <div className="lg:mx-auto lg:max-w-lg">
         <div className="mb-6 flex items-center gap-4">
           <IconButton onClick={() => navigate(-1)}>

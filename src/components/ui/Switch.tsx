@@ -11,7 +11,7 @@ export function Switch({ checked, onChange }: SwitchProps) {
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={[
-        'flex h-7 w-[50px] shrink-0 cursor-pointer items-center rounded-full p-[3px] transition-colors duration-200',
+        'flex h-7 w-[50px] shrink-0 cursor-pointer items-center rounded-full p-[3px] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-pink-light',
         checked ? 'justify-end bg-lime' : 'justify-start bg-card-2',
       ].join(' ')}
     >

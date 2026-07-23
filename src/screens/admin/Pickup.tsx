@@ -1,6 +1,7 @@
 import { Check, Phone, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { StatusBadge } from '../../components/ui/Badge';
+import { useRipple } from '../../lib/useRipple';
 import { api, type OrderDto } from '../../lib/api';
 import { formatBRLCents } from '../../lib/format';
 import { useAdminStore } from '../../store/adminStore';
@@ -16,6 +17,7 @@ export function Pickup() {
 
   const [results, setResults] = useState<OrderDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const makeRipple = useRipple();
 
   useEffect(() => {
     let cancelled = false;
@@ -141,8 +143,11 @@ export function Pickup() {
             </div>
           ) : (
             <button
-              onClick={handleDeliver}
-              className="flex h-[68px] w-full cursor-pointer items-center justify-center gap-3 rounded-md border-none bg-gradient-to-br from-lime to-lime-dark font-display text-lg font-bold uppercase tracking-wide text-bg-deep shadow-[0_16px_34px_-10px_rgba(198,255,77,0.5)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+              onClick={(e) => {
+                makeRipple(e);
+                handleDeliver();
+              }}
+              className="relative flex h-[68px] w-full cursor-pointer items-center justify-center gap-3 overflow-hidden rounded-md border-none bg-gradient-to-br from-lime to-lime-dark font-display text-lg font-bold uppercase tracking-wide text-bg-deep shadow-[0_16px_34px_-10px_rgba(198,255,77,0.5)] outline-none transition-transform hover:-translate-y-0.5 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-pink-light"
             >
               Entregar pedido
             </button>

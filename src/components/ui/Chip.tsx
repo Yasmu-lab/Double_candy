@@ -8,7 +8,7 @@ export function Chip({ active = false, className = '', children, ...rest }: Chip
   return (
     <button
       className={[
-        'shrink-0 px-[18px] py-[9px] rounded-sm text-[13.5px] font-semibold whitespace-nowrap cursor-pointer transition-all duration-150',
+        'shrink-0 px-[18px] py-[9px] rounded-sm text-[13.5px] font-semibold whitespace-nowrap cursor-pointer transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-pink-light',
         active
           ? 'bg-gradient-to-br from-pink to-pink-dark text-text'
           : 'bg-surface text-text-2 hover:text-text',

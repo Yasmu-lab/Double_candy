@@ -1,20 +1,10 @@
 import { Lollipop } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { lazy, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { CartOverlay } from './components/cart/CartOverlay';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { ToastHost } from './components/ui/Toast';
-import { Categories } from './screens/admin/Categories';
-import { Clients } from './screens/admin/Clients';
-import { Dashboard } from './screens/admin/Dashboard';
-import { Orders as AdminOrders } from './screens/admin/Orders';
-import { PasswordResets } from './screens/admin/PasswordResets';
-import { Pickup } from './screens/admin/Pickup';
-import { Prepare } from './screens/admin/Prepare';
-import { Products as AdminProducts } from './screens/admin/Products';
-import { Reports } from './screens/admin/Reports';
-import { Settings } from './screens/admin/Settings';
 import { Confirmation } from './screens/Confirmation';
 import { History } from './screens/History';
 import { Home } from './screens/Home';
@@ -25,6 +15,20 @@ import { Splash } from './screens/Splash';
 import { useAuthStore } from './store/authStore';
 import { useCartStore } from './store/cartStore';
 import { useNotificationStore } from './store/notificationStore';
+
+// Admin screens are only ever loaded by the 3 hardcoded admin phones, so they're split into
+// their own lazily-fetched chunks instead of shipping in the main bundle every customer pays for.
+// AdminLayout wraps its <Outlet /> in a Suspense boundary, so no fallback is needed here.
+const Categories = lazy(() => import('./screens/admin/Categories').then((m) => ({ default: m.Categories })));
+const Clients = lazy(() => import('./screens/admin/Clients').then((m) => ({ default: m.Clients })));
+const Dashboard = lazy(() => import('./screens/admin/Dashboard').then((m) => ({ default: m.Dashboard })));
+const AdminOrders = lazy(() => import('./screens/admin/Orders').then((m) => ({ default: m.Orders })));
+const PasswordResets = lazy(() => import('./screens/admin/PasswordResets').then((m) => ({ default: m.PasswordResets })));
+const Pickup = lazy(() => import('./screens/admin/Pickup').then((m) => ({ default: m.Pickup })));
+const Prepare = lazy(() => import('./screens/admin/Prepare').then((m) => ({ default: m.Prepare })));
+const AdminProducts = lazy(() => import('./screens/admin/Products').then((m) => ({ default: m.Products })));
+const Reports = lazy(() => import('./screens/admin/Reports').then((m) => ({ default: m.Reports })));
+const Settings = lazy(() => import('./screens/admin/Settings').then((m) => ({ default: m.Settings })));
 
 function AuthLoading() {
   return (

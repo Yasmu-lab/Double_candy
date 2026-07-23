@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 
+export type ToastType = 'success' | 'error';
+
 interface Toast {
   id: number;
   message: string;
+  type: ToastType;
 }
 
 interface UiState {
@@ -12,7 +15,7 @@ interface UiState {
   openCart: () => void;
   closeCart: () => void;
   setDeskConfirmed: (v: boolean) => void;
-  showToast: (message: string) => void;
+  showToast: (message: string, type?: ToastType) => void;
 }
 
 let toastSeq = 0;
@@ -25,10 +28,10 @@ export const useUiStore = create<UiState>()((set) => ({
   openCart: () => set({ cartOpen: true, deskConfirmed: false }),
   closeCart: () => set({ cartOpen: false, deskConfirmed: false }),
   setDeskConfirmed: (v) => set({ deskConfirmed: v }),
-  showToast: (message) => {
+  showToast: (message, type = 'success') => {
     toastSeq += 1;
     const id = toastSeq;
-    set({ toast: { id, message } });
+    set({ toast: { id, message, type } });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => {
       set((state) => (state.toast?.id === id ? { toast: null } : state));

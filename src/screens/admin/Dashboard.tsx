@@ -23,6 +23,7 @@ import { LineChart } from '../../components/charts/LineChart';
 import { KpiCard } from '../../components/admin/KpiCard';
 import { Chip } from '../../components/ui/Chip';
 import { StatusBadge } from '../../components/ui/Badge';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { api, type DashboardPeriod } from '../../lib/api';
 import { formatBRLCents } from '../../lib/format';
 import { useUiStore } from '../../store/uiStore';
@@ -160,7 +161,34 @@ export function Dashboard() {
     return <div className="rounded-xl border border-red/30 bg-red/[0.08] p-6 text-sm text-red">Erro ao carregar: {error}</div>;
   }
   if (!data) {
-    return <div className="py-10 text-center text-sm text-text-2">Carregando dashboard...</div>;
+    return (
+      <div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="rounded-lg border border-white/[0.06] bg-surface p-[18px]">
+              <div className="flex items-center justify-between gap-2">
+                <Skeleton className="h-[42px] w-[42px] rounded-[13px]" />
+                <Skeleton className="h-5 w-12 rounded-full" />
+              </div>
+              <Skeleton className="mt-3.5 h-6 w-20" />
+              <Skeleton className="mt-1.5 h-3.5 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr]">
+          <div className="rounded-xl border border-white/[0.06] bg-surface p-[22px]">
+            <Skeleton className="mb-5 h-5 w-32" />
+            <Skeleton className="h-[200px] w-full" />
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-surface p-[22px]">
+            <Skeleton className="mb-4 h-5 w-24" />
+            <div className="flex justify-center">
+              <Skeleton className="h-[150px] w-[150px] rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const liveKpis = [

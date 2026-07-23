@@ -2,6 +2,7 @@ import { Check, FileDown, Printer, Receipt, ShoppingBag, Wallet } from 'lucide-r
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { ProductImage } from '../../components/ui/ProductImage';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { api } from '../../lib/api';
 import { formatBRLCents } from '../../lib/format';
 import { useAdminStore } from '../../store/adminStore';
@@ -98,7 +99,29 @@ export function Prepare() {
   };
 
   if (!items) {
-    return <div className="py-10 text-center text-sm text-text-2">Carregando...</div>;
+    return (
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1fr_320px]">
+        <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-surface">
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-[22px] py-[18px]">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-[42px] w-32 rounded-sm" />
+          </div>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-4 border-b border-white/5 px-[22px] py-[15px] last:border-b-0">
+              <Skeleton className="h-7 w-7 shrink-0 rounded-[9px]" />
+              <Skeleton className="h-[42px] w-[42px] shrink-0 rounded-xs" />
+              <Skeleton className="h-4 flex-1" />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-3.5">
+          <div className="rounded-xl border border-white/[0.06] bg-surface p-[22px]">
+            <Skeleton className="mb-4 h-5 w-28" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

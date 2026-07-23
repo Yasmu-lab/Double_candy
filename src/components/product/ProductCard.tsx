@@ -1,6 +1,8 @@
-import { Plus, Sparkles } from 'lucide-react';
+import { Check, Plus, Sparkles } from 'lucide-react';
 import type { MouseEvent } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRipple } from '../../lib/useRipple';
 import { formatBRLCents } from '../../lib/format';
 import { useCartStore } from '../../store/cartStore';
 import { useUiStore } from '../../store/uiStore';
@@ -8,21 +10,29 @@ import type { Product } from '../../types';
 import { ProductImage } from '../ui/ProductImage';
 
 const LOW_STOCK_THRESHOLD = 5;
+const JUST_ADDED_MS = 900;
 
 export function ProductCard({ product }: { product: Product }) {
   const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
   const showToast = useUiStore((s) => s.showToast);
+  const makeRipple = useRipple();
+  const [justAdded, setJustAdded] = useState(false);
+  const justAddedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const outOfStock = product.stock <= 0;
   const onPromo = !outOfStock && product.compareAtPriceCents != null && product.compareAtPriceCents > product.priceCents;
   const lowStock = !outOfStock && product.stock <= LOW_STOCK_THRESHOLD;
 
-  const handleAdd = (e: MouseEvent) => {
+  const handleAdd = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (outOfStock) return;
     addItem(product.id, 1);
     showToast(`${product.name} no carrinho`);
+    makeRipple(e);
+    setJustAdded(true);
+    clearTimeout(justAddedTimer.current);
+    justAddedTimer.current = setTimeout(() => setJustAdded(false), JUST_ADDED_MS);
   };
 
   return (
@@ -73,10 +83,22 @@ export function ProductCard({ product }: { product: Product }) {
       <button
         onClick={handleAdd}
         disabled={outOfStock}
-        className="mt-[9px] flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xs border-none bg-card-2 text-[12.5px] font-bold text-text transition-all duration-200 hover:bg-pink active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 lg:mt-2.5 lg:h-11 lg:text-[13.5px]"
+        className={[
+          'relative mt-[9px] flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-xs border-none text-[12.5px] font-bold text-text transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 outline-none focus-visible:ring-2 focus-visible:ring-pink-light lg:mt-2.5 lg:h-11 lg:text-[13.5px]',
+          justAdded ? 'bg-lime text-bg-deep' : 'bg-card-2 hover:bg-pink',
+        ].join(' ')}
       >
-        <Plus size={16} strokeWidth={2.4} />
-        {outOfStock ? 'Esgotado' : 'Adicionar ao carrinho'}
+        {justAdded ? (
+          <span className="animate-dc-pop flex items-center gap-1.5">
+            <Check size={16} strokeWidth={2.8} />
+            Adicionado!
+          </span>
+        ) : (
+          <>
+            <Plus size={16} strokeWidth={2.4} />
+            {outOfStock ? 'Esgotado' : 'Adicionar ao carrinho'}
+          </>
+        )}
       </button>
     </div>
   );

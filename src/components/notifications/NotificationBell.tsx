@@ -67,7 +67,8 @@ export function NotificationBell() {
     >
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-[46px] w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-sm border border-white/[0.06] bg-surface text-text transition-colors hover:bg-card-2"
+        aria-label={unreadCount > 0 ? `Notificações (${unreadCount} não lidas)` : 'Notificações'}
+        className="relative flex h-[46px] w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-sm border border-white/[0.06] bg-surface text-text outline-none transition-colors hover:bg-card-2 focus-visible:ring-2 focus-visible:ring-pink-light"
       >
         <Bell size={20} strokeWidth={2} />
         {unreadCount > 0 && (
@@ -78,7 +79,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="dc-scroll absolute right-0 top-[54px] z-30 max-h-[420px] w-[320px] overflow-y-auto rounded-md border border-white/[0.08] bg-surface shadow-[0_24px_50px_-16px_rgba(0,0,0,0.6)]">
+        <div className="dc-scroll absolute right-0 top-[54px] z-30 max-h-[420px] w-[320px] max-w-[92vw] overflow-y-auto rounded-md border border-white/[0.08] bg-surface shadow-[0_24px_50px_-16px_rgba(0,0,0,0.6)]">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-3.5 py-2.5">
             <span className="text-[13px] font-bold">Notificações</span>
             {unreadCount > 0 && (
@@ -134,7 +135,8 @@ export function NotificationBell() {
                   remove(n.id);
                 }}
                 title="Excluir"
-                className="mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-xs text-text-3 opacity-0 transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100"
+                aria-label="Excluir notificação"
+                className="mt-0.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-xs text-text-3 opacity-0 outline-none transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-pink-light"
               >
                 <Trash2 size={13} strokeWidth={2} />
               </button>

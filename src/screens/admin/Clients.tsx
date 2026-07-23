@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { api } from '../../lib/api';
 import { formatBRLCents, formatRelativeDate } from '../../lib/format';
 
@@ -25,10 +26,6 @@ export function Clients() {
     api.getClients().then(setClients).catch(() => setClients([]));
   }, []);
 
-  if (!clients) {
-    return <div className="py-10 text-center text-sm text-text-2">Carregando...</div>;
-  }
-
   return (
     <div className="animate-dc-fade-up overflow-hidden rounded-xl border border-white/[0.06] bg-surface">
       <div className="hidden grid-cols-[2.5fr_1.5fr_1fr_1.2fr_1.3fr] gap-3 border-b border-white/[0.06] px-[22px] py-[15px] text-xs font-bold uppercase tracking-wide text-text-2 md:grid">
@@ -38,8 +35,27 @@ export function Clients() {
         <span>Gasto total</span>
         <span>Última compra</span>
       </div>
-      {clients.length === 0 && <div className="px-[22px] py-10 text-center text-sm text-text-2">Nenhum cliente ainda.</div>}
-      {clients.map((c) => (
+      {!clients && (
+        <div className="px-[22px]">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="grid grid-cols-2 items-center gap-3 border-b border-white/[0.04] py-3.5 last:border-b-0 md:grid-cols-[2.5fr_1.5fr_1fr_1.2fr_1.3fr]"
+            >
+              <div className="col-span-2 flex items-center gap-3.5 md:col-span-1">
+                <Skeleton className="h-[42px] w-[42px] shrink-0 rounded-full" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+              <Skeleton className="hidden h-3.5 w-24 md:block" />
+              <Skeleton className="hidden h-4 w-6 md:block" />
+              <Skeleton className="hidden h-4 w-16 md:block" />
+              <Skeleton className="hidden h-3.5 w-20 md:block" />
+            </div>
+          ))}
+        </div>
+      )}
+      {clients?.length === 0 && <div className="px-[22px] py-10 text-center text-sm text-text-2">Nenhum cliente ainda.</div>}
+      {clients?.map((c) => (
         <div
           key={c.id}
           className="grid grid-cols-2 items-center gap-3 border-b border-white/[0.04] px-[22px] py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-card-2/40 md:grid-cols-[2.5fr_1.5fr_1fr_1.2fr_1.3fr]"
