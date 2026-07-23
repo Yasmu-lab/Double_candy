@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, LayoutGrid, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/Button';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { ApiError } from '../../lib/api';
 import { useCategoriesStore } from '../../store/categoriesStore';
 import { useProductsStore } from '../../store/productsStore';
@@ -37,7 +38,7 @@ function CategoryModal({
       onClose();
       showToast('Categoria salva com sucesso');
     } catch {
-      showToast('Não deu pra salvar. Tenta de novo.');
+      showToast('Não deu pra salvar. Tenta de novo.', 'error');
     } finally {
       setSaving(false);
     }
@@ -121,9 +122,9 @@ export function Categories() {
       showToast(`${name} removida`);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'CATEGORY_IN_USE') {
-        showToast('Essa categoria tem produtos vinculados. Mova ou remova os produtos antes.');
+        showToast('Essa categoria tem produtos vinculados. Mova ou remova os produtos antes.', 'error');
       } else {
-        showToast('Não deu pra remover essa categoria.');
+        showToast('Não deu pra remover essa categoria.', 'error');
       }
     }
   };
@@ -147,7 +148,20 @@ export function Categories() {
           <span className="text-right">Ações</span>
         </div>
 
-        {loading && categories.length === 0 && <div className="px-[22px] py-10 text-center text-sm text-text-2">Carregando...</div>}
+        {loading && categories.length === 0 && (
+          <div className="px-[22px]">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="grid grid-cols-2 items-center gap-3 border-b border-white/[0.04] py-3.5 last:border-b-0 md:grid-cols-[3fr_1fr_1fr]"
+              >
+                <Skeleton className="col-span-2 h-4 w-32 md:col-span-1" />
+                <Skeleton className="hidden h-3.5 w-10 md:block" />
+                <Skeleton className="hidden h-8 w-16 justify-self-end md:block" />
+              </div>
+            ))}
+          </div>
+        )}
 
         {!loading && categories.length === 0 && (
           <div className="flex flex-col items-center px-[22px] py-16 text-center">

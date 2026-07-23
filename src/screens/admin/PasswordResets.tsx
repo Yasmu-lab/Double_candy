@@ -33,7 +33,7 @@ export function PasswordResets() {
       showToast('Senha redefinida! Copie e repasse pro cliente.');
       load();
     } catch (e) {
-      showToast(e instanceof ApiError && e.code === 'CUSTOMER_NOT_FOUND' ? 'Não achamos uma conta com esse telefone.' : 'Não deu pra redefinir a senha.');
+      showToast(e instanceof ApiError && e.code === 'CUSTOMER_NOT_FOUND' ? 'Não achamos uma conta com esse telefone.' : 'Não deu pra redefinir a senha.', 'error');
     } finally {
       setBusyId(null);
     }
@@ -46,7 +46,7 @@ export function PasswordResets() {
       showToast('Pedido dispensado.');
       load();
     } catch {
-      showToast('Não deu pra dispensar o pedido.');
+      showToast('Não deu pra dispensar o pedido.', 'error');
     } finally {
       setBusyId(null);
     }
@@ -57,7 +57,7 @@ export function PasswordResets() {
       await navigator.clipboard.writeText(password);
       showToast('Senha copiada!');
     } catch {
-      showToast('Não deu pra copiar. Copie manualmente.');
+      showToast('Não deu pra copiar. Copie manualmente.', 'error');
     }
   };
 

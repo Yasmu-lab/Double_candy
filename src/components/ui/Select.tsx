@@ -6,7 +6,7 @@ export function Select({ className = '', children, ...rest }: SelectHTMLAttribut
     <div className="relative">
       <select
         className={[
-          'h-[52px] w-full appearance-none rounded-sm border border-white/[0.07] bg-card px-4 pr-10 font-body text-[15px] text-text outline-none focus:border-pink',
+          'h-[52px] w-full appearance-none rounded-sm border border-white/[0.07] bg-card px-4 pr-10 font-body text-[15px] text-text outline-none focus:border-pink focus-visible:ring-2 focus-visible:ring-pink-light',
           className,
         ].join(' ')}
         {...rest}

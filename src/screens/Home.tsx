@@ -7,6 +7,7 @@ import { Chip } from '../components/ui/Chip';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductCarousel } from '../components/product/ProductCarousel';
+import { Skeleton } from '../components/ui/Skeleton';
 import { firstName, useAuthStore } from '../store/authStore';
 import { useCartCount } from '../store/cartStore';
 import { useCategoriesStore } from '../store/categoriesStore';
@@ -109,7 +110,7 @@ export function Home() {
   }, [activeProducts, browsing]);
 
   return (
-    <div className="dc-app-bg min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pb-16 lg:pt-10">
+    <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pb-16 lg:pt-10">
       <div className="lg:mx-auto lg:max-w-[1180px]">
         {/* header */}
         <header className="flex items-center gap-5">
@@ -254,7 +255,17 @@ export function Home() {
           </div>
 
           {productsLoading && filtered.length === 0 ? (
-            <div className="py-10 text-center text-sm text-text-2">Carregando cardápio...</div>
+            <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4 lg:gap-[18px]">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="rounded-[22px] border border-white/5 bg-card p-[11px] lg:p-[13px]">
+                  <Skeleton className="h-[140px] w-full rounded-sm lg:h-[190px]" />
+                  <Skeleton className="mt-[9px] h-4 w-4/5 lg:mt-[11px]" />
+                  <Skeleton className="mt-1.5 h-3 w-1/2" />
+                  <Skeleton className="mt-2.5 h-5 w-1/3" />
+                  <Skeleton className="mt-2.5 h-10 w-full rounded-xs lg:h-11" />
+                </div>
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-text-2">Nenhum doce encontrado.</div>
           ) : (

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ProductModal } from '../../components/admin/ProductModal';
 import { Chip } from '../../components/ui/Chip';
 import { ProductImage } from '../../components/ui/ProductImage';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { formatBRLCents } from '../../lib/format';
 import { useAdminStore } from '../../store/adminStore';
 import { useCategoriesStore } from '../../store/categoriesStore';
@@ -37,7 +38,7 @@ export function Products() {
       await removeProduct(id);
       showToast(`${name} removido`);
     } catch {
-      showToast('Não deu pra remover esse produto.');
+      showToast('Não deu pra remover esse produto.', 'error');
     }
   };
 
@@ -72,7 +73,26 @@ export function Products() {
           <span>Status</span>
           <span className="text-right">Ações</span>
         </div>
-        {loading && filtered.length === 0 && <div className="px-[22px] py-10 text-center text-sm text-text-2">Carregando...</div>}
+        {loading && filtered.length === 0 && (
+          <div className="px-[22px]">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="grid grid-cols-2 items-center gap-3 border-b border-white/[0.04] py-3.5 last:border-b-0 md:grid-cols-[3fr_1.4fr_1fr_1fr_1.2fr_0.8fr]"
+              >
+                <div className="col-span-2 flex items-center gap-3.5 md:col-span-1">
+                  <Skeleton className="h-11 w-11 shrink-0 rounded-xs" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <Skeleton className="hidden h-3.5 w-16 md:block" />
+                <Skeleton className="hidden h-4 w-14 md:block" />
+                <Skeleton className="hidden h-3.5 w-8 md:block" />
+                <Skeleton className="hidden h-5 w-20 rounded-full md:block" />
+                <Skeleton className="hidden h-8 w-16 justify-self-end md:block" />
+              </div>
+            ))}
+          </div>
+        )}
         {filtered.map((p) => {
           const low = p.stock <= LOW_STOCK_THRESHOLD;
           const statusLabel = !p.active ? 'Inativo' : low ? 'Estoque baixo' : 'Ativo';

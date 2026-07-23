@@ -1,6 +1,7 @@
 import { BadgeDollarSign, Banknote, CircleDollarSign, Star, TrendingDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MonthlyBarChart } from '../../components/charts/MonthlyBarChart';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { api } from '../../lib/api';
 import { formatBRLCents } from '../../lib/format';
 
@@ -14,7 +15,26 @@ export function Reports() {
   }, []);
 
   if (!data) {
-    return <div className="py-10 text-center text-sm text-text-2">Carregando...</div>;
+    return (
+      <div className="animate-dc-fade-up">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="rounded-lg border border-white/[0.06] bg-surface p-5">
+              <div className="mb-3.5 flex items-center gap-2.5">
+                <Skeleton className="h-[38px] w-[38px] rounded-xs" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-7 w-28" />
+              <Skeleton className="mt-2 h-3.5 w-20" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-xl border border-white/[0.06] bg-surface p-[22px]">
+          <Skeleton className="mb-5 h-5 w-40" />
+          <Skeleton className="h-[180px] w-full" />
+        </div>
+      </div>
+    );
   }
 
   const cards = [

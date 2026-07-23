@@ -57,7 +57,7 @@ export function CartOverlay() {
       }
     } catch (e) {
       const msg = e instanceof ApiError && e.code === 'OUT_OF_STOCK' ? 'Um dos itens acabou de esgotar.' : 'Não deu pra confirmar. Tenta de novo.';
-      showToast(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }

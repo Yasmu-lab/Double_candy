@@ -1,9 +1,10 @@
-import { ArrowLeft, Heart, Minus, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Check, Heart, Minus, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { ProductImage } from '../components/ui/ProductImage';
+import { Skeleton } from '../components/ui/Skeleton';
 import { formatBRLCents } from '../lib/format';
 import { tintForId } from '../lib/tint';
 import { useCartStore } from '../store/cartStore';
@@ -20,6 +21,8 @@ export function ProductDetail() {
   const loading = useProductsStore((s) => s.loading);
   const fetched = useProductsStore((s) => s.fetched);
   const [qty, setQty] = useState(1);
+  const [justAdded, setJustAdded] = useState(false);
+  const justAddedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     fetchProducts();
@@ -29,7 +32,21 @@ export function ProductDetail() {
 
   if (!product) {
     if (loading || !fetched) {
-      return <div className="flex min-h-dvh items-center justify-center bg-bg text-sm text-text-2">Carregando...</div>;
+      return (
+        <div className="min-h-dvh bg-bg pb-[128px]">
+          <Skeleton className="h-[300px] w-full rounded-none sm:h-[348px]" />
+          <div className="relative -mt-[26px] mx-auto max-w-2xl px-6">
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="mt-3 h-8 w-2/3" />
+            <Skeleton className="mt-4 h-4 w-full" />
+            <Skeleton className="mt-1.5 h-4 w-4/5" />
+            <div className="mt-5 flex gap-3">
+              <Skeleton className="h-[70px] flex-1 rounded-md" />
+              <Skeleton className="h-[70px] flex-1 rounded-md" />
+            </div>
+          </div>
+        </div>
+      );
     }
     return <Navigate to="/home" replace />;
   }
@@ -38,10 +55,13 @@ export function ProductDetail() {
     addItem(product.id, qty);
     showToast(`${product.name} no carrinho`);
     setQty(1);
+    setJustAdded(true);
+    clearTimeout(justAddedTimer.current);
+    justAddedTimer.current = setTimeout(() => setJustAdded(false), 900);
   };
 
   return (
-    <div className="min-h-dvh bg-bg pb-[128px]">
+    <div className="animate-dc-fade-up min-h-dvh bg-bg pb-[128px]">
       <div className="relative h-[300px] sm:h-[348px]" style={{ background: tintForId(product.id) }}>
         <ProductImage product={product} className="h-full w-full" />
         <div
@@ -51,10 +71,16 @@ export function ProductDetail() {
               'linear-gradient(180deg,rgba(20,14,36,.35) 0%,rgba(20,14,36,0) 30%,rgba(27,19,48,.9) 100%)',
           }}
         />
-        <IconButton tone="glass" size="lg" onClick={() => navigate(-1)} className="absolute left-5 top-[52px]">
+        <IconButton
+          tone="glass"
+          size="lg"
+          onClick={() => navigate(-1)}
+          aria-label="Voltar"
+          className="absolute left-5 top-[52px]"
+        >
           <ArrowLeft size={22} strokeWidth={2.2} />
         </IconButton>
-        <IconButton tone="glass" size="lg" className="absolute right-5 top-[52px] text-pink">
+        <IconButton tone="glass" size="lg" aria-label="Favoritar" className="absolute right-5 top-[52px] text-pink">
           <Heart size={20} strokeWidth={2} />
         </IconButton>
       </div>
@@ -109,8 +135,25 @@ export function ProductDetail() {
             <div className="text-xs text-text-2">Total</div>
             <div className="font-display text-2xl font-bold text-pink">{formatBRLCents(product.priceCents * qty)}</div>
           </div>
-          <Button ripple size="lg" fullWidth className="flex-1" disabled={product.stock <= 0} onClick={handleAdd}>
-            {product.stock <= 0 ? 'Esgotado' : 'Adicionar'}
+          <Button
+            ripple
+            variant={justAdded ? 'success' : 'primary'}
+            size="lg"
+            fullWidth
+            className="flex-1"
+            disabled={product.stock <= 0}
+            onClick={handleAdd}
+          >
+            {justAdded ? (
+              <span className="animate-dc-pop flex items-center gap-2">
+                <Check size={18} strokeWidth={2.8} />
+                Adicionado!
+              </span>
+            ) : product.stock <= 0 ? (
+              'Esgotado'
+            ) : (
+              'Adicionar'
+            )}
           </Button>
         </div>
       </div>

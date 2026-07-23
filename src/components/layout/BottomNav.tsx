@@ -10,22 +10,26 @@ export function BottomNav() {
   const openCart = useUiStore((s) => s.openCart);
 
   const navBtn = (active: boolean) =>
-    `w-[52px] h-11 rounded-sm flex items-center justify-center cursor-pointer transition-all duration-200 ${
+    `w-[52px] h-11 rounded-sm flex items-center justify-center cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-pink-light ${
       active ? 'bg-pink text-text shadow-[0_8px_18px_-6px_rgba(255,79,160,0.6)]' : 'bg-transparent text-text-2'
     }`;
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 px-5 pb-6 pt-3 bg-gradient-to-t from-bg-deep via-bg-deep/95 to-transparent">
       <div className="mx-auto flex max-w-md items-center justify-around rounded-lg border border-white/[0.08] bg-card-2/85 px-2 py-2.5 shadow-[0_16px_40px_-14px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-        <button onClick={() => navigate('/home')} className={navBtn(location.pathname === '/home')}>
+        <button onClick={() => navigate('/home')} aria-label="Início" className={navBtn(location.pathname === '/home')}>
           <Home size={23} strokeWidth={2} />
         </button>
-        <button className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer">
+        <button
+          aria-label="Buscar"
+          className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-pink-light"
+        >
           <Search size={23} strokeWidth={2} />
         </button>
         <button
           onClick={openCart}
-          className="relative w-[60px] h-14 rounded-md border-none bg-gradient-to-br from-pink to-pink-dark text-text flex items-center justify-center cursor-pointer shadow-[0_12px_26px_-8px_rgba(255,79,160,0.7)] transition-transform active:scale-90"
+          aria-label={count > 0 ? `Carrinho (${count} itens)` : 'Carrinho'}
+          className="relative w-[60px] h-14 rounded-md border-none bg-gradient-to-br from-pink to-pink-dark text-text flex items-center justify-center cursor-pointer shadow-[0_12px_26px_-8px_rgba(255,79,160,0.7)] outline-none transition-transform active:scale-90 focus-visible:ring-2 focus-visible:ring-pink-light"
         >
           <ShoppingBag size={24} strokeWidth={2} />
           {count > 0 && (
@@ -37,10 +41,13 @@ export function BottomNav() {
             </span>
           )}
         </button>
-        <button className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer">
+        <button
+          aria-label="Favoritos"
+          className="w-[52px] h-11 rounded-sm flex items-center justify-center text-text-2 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-pink-light"
+        >
           <Heart size={23} strokeWidth={2} />
         </button>
-        <button onClick={() => navigate('/history')} className={navBtn(location.pathname === '/history')}>
+        <button onClick={() => navigate('/history')} aria-label="Meus pedidos" className={navBtn(location.pathname === '/history')}>
           <Clock size={23} strokeWidth={2} />
         </button>
       </div>

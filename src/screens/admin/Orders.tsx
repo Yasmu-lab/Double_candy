@@ -72,7 +72,7 @@ export function Orders() {
         showToast(`${openOrder.displayId} marcado como ${label}`);
         return api.getOrderHistory(openOrder.id).then(setHistory);
       })
-      .catch(() => showToast('Não deu pra atualizar o pedido.'))
+      .catch(() => showToast('Não deu pra atualizar o pedido.', 'error'))
       .finally(() => setUpdating(false));
   };
 
@@ -89,11 +89,27 @@ export function Orders() {
           ))}
         </div>
         <div className="flex flex-col gap-3">
-          {loading && filtered.length === 0 && (
-            <div className="rounded-xl border border-white/[0.06] bg-surface px-5 py-10 text-center text-sm text-text-2">
-              Carregando...
-            </div>
-          )}
+          {loading &&
+            filtered.length === 0 &&
+            [0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex flex-wrap items-center justify-between gap-3.5 rounded-md border border-white/[0.06] bg-surface px-[18px] py-[15px]"
+              >
+                <div className="flex items-center gap-3.5">
+                  <Skeleton className="h-11 w-11 shrink-0 rounded-xs" />
+                  <div>
+                    <Skeleton className="mb-1.5 h-4 w-28" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-3.5 w-10" />
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </div>
+            ))}
           {!loading && filtered.length === 0 && (
             <div className="rounded-xl border border-white/[0.06] bg-surface px-5 py-10 text-center text-sm text-text-2">
               Nenhum pedido para este período.
