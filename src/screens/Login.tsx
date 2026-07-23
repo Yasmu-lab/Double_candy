@@ -296,7 +296,7 @@ export function Login() {
           </>
         )}
 
-        <p className="mt-[22px] text-center text-[12.5px] text-text-3">Ao continuar você concorda com os termos da cantina.</p>
+        <p className="mt-[22px] text-center text-[12.5px] text-text-3">Ao continuar você concorda com os termos da Double Candy.</p>
       </div>
     </div>
   );

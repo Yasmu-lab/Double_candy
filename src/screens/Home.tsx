@@ -1,5 +1,5 @@
-import { Clock, Flame, LayoutDashboard, LogOut, Search, ShoppingBag, SlidersHorizontal, Sparkles, Star, User } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Clock, Flame, LayoutDashboard, LogOut, Search, ShoppingBag, Sparkles, Star, User } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
 import { BottomNav } from '../components/layout/BottomNav';
@@ -33,7 +33,9 @@ export function Home() {
   const cartCount = useCartCount();
   const openCart = useUiStore((s) => s.openCart);
   const showToast = useUiStore((s) => s.showToast);
+  const focusSearchSignal = useUiStore((s) => s.focusSearchSignal);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const mobileSearchRef = useRef<HTMLInputElement>(null);
 
   const handleLogout = async () => {
     await logout();
@@ -61,6 +63,10 @@ export function Home() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (focusSearchSignal > 0) mobileSearchRef.current?.focus();
+  }, [focusSearchSignal]);
 
   const greeting = greetingForNow();
   const activeProducts = useMemo(() => products.filter((p) => p.active), [products]);
@@ -198,12 +204,12 @@ export function Home() {
         <div className="mt-[18px] flex h-[52px] items-center gap-3 rounded-md border border-white/[0.06] bg-surface px-4 lg:hidden">
           <Search size={19} strokeWidth={2} className="shrink-0 text-text-2" />
           <input
+            ref={mobileSearchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar doce..."
             className="min-w-0 flex-1 bg-transparent font-body text-[15px] text-text outline-none placeholder:text-text-3"
           />
-          <SlidersHorizontal size={19} strokeWidth={2} className="shrink-0 text-purple" />
         </div>
 
         {/* categories */}
@@ -231,12 +237,12 @@ export function Home() {
           />
           <div className="relative flex h-full flex-col items-start justify-center p-[22px] lg:px-10 lg:py-8">
             <Badge tone="lime" icon={<Star size={12} strokeWidth={0} fill="currentColor" />}>
-              CANTINA DA ESCOLA
+              DOUBLE CANDY
             </Badge>
             <div className="mt-2.5 max-w-[70%] font-display text-2xl font-bold leading-[1.05] lg:max-w-none lg:text-[32px]">
               Retirada
               <br />
-              amanhã na escola
+              amanhã na loja
             </div>
             <div className="mt-1.5 text-[13px] text-[#EADFFF] lg:text-[15px]">Reserva agora, retira e paga na hora</div>
           </div>

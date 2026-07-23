@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Heart, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Check, Minus, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
@@ -79,9 +79,6 @@ export function ProductDetail() {
           className="absolute left-5 top-[52px]"
         >
           <ArrowLeft size={22} strokeWidth={2.2} />
-        </IconButton>
-        <IconButton tone="glass" size="lg" aria-label="Favoritar" className="absolute right-5 top-[52px] text-pink">
-          <Heart size={20} strokeWidth={2} />
         </IconButton>
       </div>
 

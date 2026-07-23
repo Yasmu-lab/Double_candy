@@ -41,6 +41,7 @@
   --animate-dc-scale-in: dcScaleIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
   --animate-dc-sheet-up: dcSheetUp 0.38s cubic-bezier(0.2, 0.9, 0.25, 1) both;
   --animate-dc-drawer-in: dcDrawerIn 0.38s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  --animate-dc-drawer-in-left: dcDrawerInLeft 0.38s cubic-bezier(0.2, 0.9, 0.25, 1) both;
   --animate-dc-float: dcFloat 6s ease-in-out infinite;
   --animate-dc-pop: dcPop 0.35s ease;
   --animate-dc-spin: dcSpin 0.8s linear infinite;
@@ -89,6 +90,14 @@
   @keyframes dcDrawerIn {
     from {
       transform: translateX(103%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes dcDrawerInLeft {
+    from {
+      transform: translateX(-103%);
     }
     to {
       transform: translateX(0);

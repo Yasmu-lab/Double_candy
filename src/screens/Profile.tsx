@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { BottomNav } from '../components/layout/BottomNav';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { Input } from '../components/ui/Input';
@@ -112,7 +113,7 @@ export function Profile() {
   };
 
   return (
-    <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-5 pb-16 pt-8 lg:px-8 lg:pt-10">
+    <div className="dc-app-bg animate-dc-fade-up min-h-dvh px-5 pb-32 pt-8 lg:px-8 lg:pb-16 lg:pt-10">
       <div className="lg:mx-auto lg:max-w-lg">
         <div className="mb-6 flex items-center gap-4">
           <IconButton onClick={() => navigate(-1)}>
@@ -248,6 +249,7 @@ export function Profile() {
           Sair
         </button>
       </div>
+      <BottomNav />
     </div>
   );
 }
